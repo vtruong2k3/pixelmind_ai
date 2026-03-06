@@ -44,7 +44,8 @@ model User {
   image            String?
   password         String?   // null for OAuth users, bcrypt hash for credentials users
   credits          Int       @default(10)
-  plan             String    @default("free") // "free", "pro", "unlimited"
+  plan             String    @default("free") // "free", "starter", "pro", "max"
+  planExpiresAt    DateTime?                  // Ngày hết hạn gói tháng (null = free)
   stripeCustomerId String?   @unique          // Stripe customer ID
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

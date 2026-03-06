@@ -21,13 +21,12 @@ export async function GET(req: NextRequest) {
     const items = await prisma.job.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: limit + 1, // Lấy thêm 1 để check có trang tiếp theo không
+      take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: {
         id: true,
         featureSlug: true,
         featureName: true,
-        outputUrl: true,
         createdAt: true,
         user: {
           select: {
@@ -52,7 +51,8 @@ export async function GET(req: NextRequest) {
       id: item.id,
       featureSlug: item.featureSlug,
       featureName: item.featureName,
-      outputUrl: item.outputUrl!,
+      // Trả URL proxy thay vì base64 để JSON response nhẹ hơn
+      outputUrl: `/api/image/${item.id}`,
       userName: item.user.name,
       userImage: item.user.image,
       createdAt: item.createdAt,

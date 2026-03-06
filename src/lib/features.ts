@@ -15,16 +15,16 @@ import type { AIFeature, FeatureCategory, SizePreset } from "@/types/ui";
 // AI FEATURES DATA
 // ─────────────────────────────────────
 export const AI_FEATURES: AIFeature[] = [
-  { slug: "insert_object",    name: "Ghép vật thể",        desc: "Ghép đồ vật vào ảnh người",   category: "fashion",    credits: 2, imageCount: 2 },
-  { slug: "swap_swimsuit",    name: "Thay đồ bơi",          desc: "Thay outfit bơi lội tự nhiên", category: "fashion",    credits: 2, imageCount: 2 },
-  { slug: "swap_background",  name: "Ghép background",      desc: "Đổi phong cảnh, bối cảnh",    category: "photo_edit", credits: 2, imageCount: 2 },
-  { slug: "swap_face",        name: "Thay khuôn mặt",       desc: "Swap khuôn mặt tự nhiên",     category: "fashion",    credits: 2, imageCount: 2 },
-  { slug: "swap_shirt",       name: "Thay áo",              desc: "Thay áo, giữ nguyên in ấn",   category: "fashion",    credits: 2, imageCount: 2 },
-  { slug: "change_color",     name: "Thay màu quần áo",     desc: "Đổi màu trang phục tuỳ ý",   category: "fashion",    credits: 1, imageCount: 1 },
-  { slug: "extract_clothing", name: "Lấy quần áo",          desc: "Tách quần áo, trải phẳng",   category: "fashion",    credits: 1, imageCount: 1 },
-  { slug: "to_anime",         name: "Ảnh thật → Anime",     desc: "Biến ảnh thật thành anime",  category: "creative",   credits: 1, imageCount: 1 },
-  { slug: "drawing_to_photo", name: "Tranh vẽ → Ảnh thật", desc: "Tranh đen trắng thành ảnh",  category: "creative",   credits: 1, imageCount: 1 },
-  { slug: "restore_photo",    name: "Phục hồi ảnh cũ",      desc: "Làm mới ảnh cũ bị hư hỏng", category: "photo_edit", credits: 1, imageCount: 1 },
+  { slug: "insert_object",    name: "Ghép vật thể",        desc: "Ghép đồ vật vào ảnh người",   category: "fashion",    credits: 10, imageCount: 2 },
+  { slug: "swap_swimsuit",    name: "Thay đồ bơi",          desc: "Thay outfit bơi lội tự nhiên", category: "fashion",    credits: 10, imageCount: 2 },
+  { slug: "swap_background",  name: "Ghép background",      desc: "Đổi phong cảnh, bối cảnh",    category: "photo_edit", credits: 10, imageCount: 2 },
+  { slug: "swap_face",        name: "Thay khuôn mặt",       desc: "Swap khuôn mặt tự nhiên",     category: "fashion",    credits: 10, imageCount: 2 },
+  { slug: "swap_shirt",       name: "Thay áo",              desc: "Thay áo, giữ nguyên in ấn",   category: "fashion",    credits: 10, imageCount: 2 },
+  { slug: "change_color",     name: "Thay màu quần áo",     desc: "Đổi màu trang phục tuỳ ý",   category: "fashion",    credits: 10, imageCount: 1 },
+  { slug: "extract_clothing", name: "Lấy quần áo",          desc: "Tách quần áo, trải phẳng",   category: "fashion",    credits: 10, imageCount: 1 },
+  { slug: "to_anime",         name: "Ảnh thật → Anime",     desc: "Biến ảnh thật thành anime",  category: "creative",   credits: 10, imageCount: 1 },
+  { slug: "drawing_to_photo", name: "Tranh vẽ → Ảnh thật", desc: "Tranh đen trắng thành ảnh",  category: "creative",   credits: 10, imageCount: 1 },
+  { slug: "restore_photo",    name: "Phục hồi ảnh cũ",      desc: "Làm mới ảnh cũ bị hư hỏng", category: "photo_edit", credits: 10, imageCount: 1 },
 ];
 
 // ─────────────────────────────────────

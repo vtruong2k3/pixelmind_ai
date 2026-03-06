@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
-// PayPal plans — tương ứng với PricingSection
+// ── Gói tháng mới (monthly subscription) ──
 export const PAYPAL_PLANS = {
-  starter: { credits: 50,  amountUSD: "2.00",  name: "Starter — 50 Credits" },
-  pro:     { credits: 200, amountUSD: "4.00",  name: "Pro — 200 Credits" },
-  max:     { credits: 500, amountUSD: "10.00", name: "Max — 500 Credits" },
+  starter: { credits: 500,  amountUSD: "24.00", name: "Starter — 500 Credits/tháng",  planKey: "starter" },
+  pro:     { credits: 1500, amountUSD: "66.00", name: "Pro — 1500 Credits/tháng",      planKey: "pro"     },
+  max:     { credits: 4000, amountUSD: "100.00",name: "Max — 4000 Credits/tháng",      planKey: "max"     },
 };
 
-// Lấy PayPal access token
 async function getPayPalAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID!;
   const secret = process.env.PAYPAL_CLIENT_SECRET!;

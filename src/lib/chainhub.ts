@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const CHAINHUB_BASE = "https://generate.chainhub.tech/images/edits";
+const CHAINHUB_BASE = process.env.CHAINHUB_API_URL!;
 const CHAINHUB_API_KEY = process.env.CHAINHUB_API_KEY!;
 
 export interface GenerateParams {
@@ -79,7 +79,7 @@ export async function submitTask(params: GenerateParams): Promise<string | null>
 
 // ──────────────────────────────────────────────────────────
 // Bước 2: Poll trạng thái task
-// GET https://generate.chainhub.tech/images/edits/inpainting/{task_id}
+// GET https://generate.chainhub.tech/images/edits/{task_id}
 // Response khi xong:
 // {
 //   task_id: "...", status: "COMPLETED",
@@ -101,7 +101,7 @@ async function pollTask(
   maxWaitMs = 300_000,   // 5 phút tối đa
   intervalMs = 3_000     // poll mỗi 3 giây
 ): Promise<string | null> {
-  const statusUrl = `${CHAINHUB_BASE}/inpainting/${taskId}`;
+  const statusUrl = `${CHAINHUB_BASE}/${taskId}`;
   const deadline = Date.now() + maxWaitMs;
 
   while (Date.now() < deadline) {
@@ -154,7 +154,7 @@ async function pollTask(
 export async function pollOnce(
   taskId: string
 ): Promise<{ status: string; outputUrl?: string } | null> {
-  const statusUrl = `${CHAINHUB_BASE}/inpainting/${taskId}`;
+  const statusUrl = `${CHAINHUB_BASE}/${taskId}`;
   try {
     const res = await axios.get<PollResult>(statusUrl, {
       headers: { Authorization: `Bearer ${CHAINHUB_API_KEY}` },

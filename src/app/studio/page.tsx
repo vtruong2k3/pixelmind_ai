@@ -68,10 +68,17 @@ function useDragResize(
 // INNER STUDIO
 // ─────────────────────────────────────────────────────────────
 function StudioInner() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const user = session?.user as any;
   const isAdmin: boolean = user?.isAdmin === true;
-  const credits: number = user?.credits ?? 0;
+  const sessionCredits: number = user?.credits ?? 0;
+
+  // Local credits — cập nhật ngay lập tức khi submit/fail/done
+  const [localCredits, setLocalCredits] = useState<number>(sessionCredits);
+  // Sync khi session thay đổi (login lần đầu, updateSession thành công)
+  useEffect(() => { setLocalCredits(sessionCredits); }, [sessionCredits]);
+
+  const credits = isAdmin ? 9999 : localCredits;
   const searchParams = useSearchParams();
   const initialSlug  = searchParams?.get("feature") ?? AI_FEATURES[0].slug;
 
@@ -170,35 +177,60 @@ function StudioInner() {
       const jobId = data.jobId;
       if (!jobId) { toast.error("Không nhận được jobId."); return; }
 
+      // Trừ credits ngay trên UI (không đợi session refresh)
+      const cost = activeFeature.credits;
+      setLocalCredits(prev => Math.max(0, prev - cost));
+      updateSession(); // refresh Navbar sau
+
       // Step 2: Poll status mỗi 3 giây cho đến khi xong
       const MAX_POLLS = 100; // 100 × 3s = 5 phút
+      let doneNoUrlRetries = 0;
+
       for (let i = 0; i < MAX_POLLS; i++) {
         await new Promise(r => setTimeout(r, 3000));
 
-        const statusRes  = await fetch(`/api/generate/status?jobId=${jobId}`);
-        const statusData = await statusRes.json() as {
-          status: string; outputUrl?: string; error?: string;
-        };
+        let statusData: { status: string; outputUrl?: string; error?: string } = { status: "processing" };
+        try {
+          const statusRes = await fetch(`/api/generate/status?jobId=${jobId}`);
+          statusData = await statusRes.json();
+        } catch (fetchErr) {
+          console.warn(`[poll ${i + 1}] Network error, retrying...`, fetchErr);
+          continue;
+        }
 
-        console.log(`[poll ${i + 1}] status=${statusData.status}`);
+        console.log(`[poll ${i + 1}] status=${statusData.status} outputUrl=${statusData.outputUrl ?? "none"}`);
 
-        if (statusData.status === "done" && statusData.outputUrl) {
-          setResults(prev => [{
-            id:          jobId,
-            outputUrl:   statusData.outputUrl!,
-            featureName: activeFeature.name,
-            featureSlug: activeFeature.slug,
-            createdAt:   new Date(),
-          }, ...prev]);
-          toast.success("Ảnh đã tạo xong! ✦");
-          return;
+        if (statusData.status === "done") {
+          if (statusData.outputUrl) {
+            setResults(prev => [{
+              id:          jobId,
+              outputUrl:   statusData.outputUrl!,
+              featureName: activeFeature.name,
+              featureSlug: activeFeature.slug,
+              createdAt:   new Date(),
+            }, ...prev]);
+            toast.success("Ảnh đã tạo xong! ✦");
+            // Cập nhật credits trong session mà không cần F5
+            await updateSession();
+            return;
+          } else {
+            doneNoUrlRetries++;
+            console.warn(`[poll ${i + 1}] status=done nhưng outputUrl rỗng (retry ${doneNoUrlRetries}/3)`);
+            if (doneNoUrlRetries >= 3) {
+              toast.error("Ảnh đã xong nhưng không thể tải. Vui lòng xem lại Lịch sử.");
+              return;
+            }
+            continue;
+          }
         }
 
         if (statusData.status === "failed") {
           toast.error(statusData.error ?? "Tạo ảnh thất bại.");
+          // Hoàn credits lại trên UI ngay lập tức
+          setLocalCredits(prev => prev + activeFeature.credits);
+          await updateSession();
           return;
         }
-        // status = "processing" | "PROCESSING" | "QUEUED" → tiếp tục poll
       }
 
       toast.error("Hết thời gian chờ. Vui lòng thử lại.");
@@ -410,7 +442,7 @@ function StudioInner() {
               ) : (
                 <>
                   <Zap size={15} />
-                  Tạo ảnh · {activeFeature.credits} credit{activeFeature.credits > 1 ? "s" : ""}
+                  Tạo ảnh
                 </>
               )}
             </button>
