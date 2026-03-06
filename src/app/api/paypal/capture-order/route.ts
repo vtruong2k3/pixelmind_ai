@@ -37,7 +37,40 @@ export async function POST(req: NextRequest) {
 
     const { token, base } = await getPayPalAccessToken();
 
-    // Capture PayPal order
+    // ── Bước 1: Lấy order details TRƯỚC để đọc custom_id (planId) ──
+    // Đây là cách đáng tin cậy nhất, vì custom_id trong capture response
+    // không phải lúc nào cũng có đầy đủ
+    const orderDetailsRes = await fetch(`${base}/v2/checkout/orders/${orderId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const orderDetails = await orderDetailsRes.json();
+
+    // custom_id được set khi tạo order trong purchase_units[0].custom_id
+    const customIdRaw = orderDetails.purchase_units?.[0]?.custom_id ?? null;
+    console.log("[capture-order] custom_id raw:", customIdRaw);
+    console.log("[capture-order] order status:", orderDetails.status);
+
+    let customData: { userId: string; planId: string; credits: number } | null = null;
+    try {
+      if (customIdRaw) customData = JSON.parse(customIdRaw);
+    } catch {
+      console.warn("[capture-order] Không parse được custom_id:", customIdRaw);
+    }
+
+    // Lấy planId từ custom_id (đáng tin cậy) — KHÔNG fallback mù quáng
+    const planId = customData?.planId;
+    if (!planId || !PAYPAL_PLANS[planId as keyof typeof PAYPAL_PLANS]) {
+      console.error("[capture-order] planId không hợp lệ:", planId, "| customData:", customData);
+      return NextResponse.json({ error: "Không xác định được gói thanh toán" }, { status: 400 });
+    }
+
+    const plan = PAYPAL_PLANS[planId as keyof typeof PAYPAL_PLANS];
+    const creditsToAdd = customData?.credits ?? plan.credits;
+    const userId = customData?.userId ?? (session.user as any).id;
+
+    console.log(`[capture-order] planId=${planId}, credits=${creditsToAdd}, userId=${userId}`);
+
+    // ── Bước 2: Capture order ──
     const captureRes = await fetch(`${base}/v2/checkout/orders/${orderId}/capture`, {
       method: "POST",
       headers: {
@@ -47,29 +80,13 @@ export async function POST(req: NextRequest) {
     });
 
     const captureData = await captureRes.json();
+    console.log("[capture-order] capture status:", captureData.status);
 
     if (captureData.status !== "COMPLETED") {
       return NextResponse.json({ error: "Thanh toán chưa hoàn thành" }, { status: 400 });
     }
 
-    // Đọc custom_id từ purchase_unit
-    const customIdRaw = captureData.purchase_units?.[0]?.reference_id
-      ?? captureData.purchase_units?.[0]?.payments?.captures?.[0]?.custom_id
-      ?? captureData.purchase_units?.[0]?.custom_id;
-
-    let customData: { userId: string; planId: string; credits: number } | null = null;
-    try {
-      customData = JSON.parse(customIdRaw ?? "{}");
-    } catch {
-      // fallback: đọc từ session
-    }
-
-    const userId = customData?.userId ?? (session.user as any).id;
-    const planId = customData?.planId ?? "starter";
-    const plan = PAYPAL_PLANS[planId as keyof typeof PAYPAL_PLANS];
-    const creditsToAdd = customData?.credits ?? plan?.credits ?? 50;
-
-    // Cộng credits + ghi CreditTransaction (idempotent: kiểm tra orderId)
+    // ── Bước 3: Idempotent check ──
     const existing = await prisma.creditTransaction.findFirst({
       where: { description: { contains: orderId } },
     });
@@ -77,25 +94,58 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, alreadyProcessed: true });
     }
 
+    // ── Bước 4: Tính ngày hết hạn gói (30 ngày) ──
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true, planExpiresAt: true } as any,
+    }) as any;
+
+    const now = new Date();
+    const PLAN_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2, max: 3 };
+    const currentRank = PLAN_RANK[currentUser?.plan ?? "free"] ?? 0;
+    const newRank = PLAN_RANK[planId] ?? 1;
+
+    let newExpiresAt: Date;
+    if (
+      currentUser?.planExpiresAt &&
+      currentUser.planExpiresAt > now &&
+      currentRank === newRank
+    ) {
+      // Gia hạn cùng gói: cộng thêm 30 ngày từ ngày hết hạn cũ
+      newExpiresAt = new Date((currentUser?.planExpiresAt as any).getTime() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      // Gói mới hoặc nâng cấp: 30 ngày từ hôm nay
+      newExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // ── Bước 5: Cộng credits + set plan + set planExpiresAt ──
     const [updatedUser] = await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
-        data: { credits: { increment: creditsToAdd } },
+        data: {
+          credits: { increment: creditsToAdd },
+          plan: planId,
+          planExpiresAt: newExpiresAt,
+        } as any, // planExpiresAt mới thêm, cần as any cho đến khi restart server
       }),
       prisma.creditTransaction.create({
         data: {
           userId,
           amount: creditsToAdd,
           type: "purchase",
-          description: `Nạp credits: ${plan?.name ?? planId} (PayPal ${orderId})`,
+          description: `Đăng ký gói ${plan.planKey}: +${creditsToAdd} credits (PayPal ${orderId})`,
         },
       }),
     ]);
+
+    console.log(`[capture-order] ✅ Thành công: userId=${userId} plan=${planId} credits+=${creditsToAdd} expiresAt=${newExpiresAt.toISOString()}`);
 
     return NextResponse.json({
       success: true,
       creditsAdded: creditsToAdd,
       newBalance: updatedUser.credits,
+      plan: planId,
+      planExpiresAt: newExpiresAt.toISOString(),
     });
   } catch (error) {
     console.error("[/api/paypal/capture-order] Error:", error);

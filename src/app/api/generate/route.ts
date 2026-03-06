@@ -4,13 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { submitTask } from "@/lib/chainhub";
 
 // POST /api/generate
-// Flow mới (async):
-// 1. Kiểm tra auth + credits
-// 2. Submit ảnh lên ChainHub → nhận task_id ngay
-// 3. Tạo Job trong DB với status="processing" + chainhubTaskId
-// 4. Trừ credits ngay (trước khi có kết quả)
-// 5. Trả về { jobId } NGAY LẬP TỨC — không đợi ảnh xong
-// Frontend sẽ poll /api/generate/status?jobId=xxx mỗi 3 giây
+// Flow:
+// 1. Kiểm tra auth + credits (đủ không?)
+// 2. Trừ credits ngay khi submit
+// 3. Submit ảnh lên ChainHub → nhận task_id
+// 4. Tạo Job trong DB với status="processing"
+// 5. Trả về { jobId } — frontend poll /api/generate/status
+// Nếu ảnh FAIL → hoàn credits lại (refund ở status route)
 
 export async function POST(req: NextRequest) {
   try {
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Không thể submit task lên ChainHub" }, { status: 500 });
     }
 
-    // 7. Tạo Job + trừ credits trong 1 transaction
+    // 7. Tạo Job + trừ credits ngay trong 1 transaction
     const dbOps: any[] = [
       prisma.job.create({
         data: {

@@ -1,24 +1,24 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Zap, ArrowRight, Sparkles, Star, Clock, Gift } from "lucide-react";
+import { Zap, ArrowRight, Sparkles, Star, Gift } from "lucide-react";
 
 // Slides quảng cáo ưu đãi — tự chuyển mỗi 4s
 const PROMO_SLIDES = [
   {
-    badge: "🎁 ƯU ĐÃI ĐẶC BIỆT",
-    title: "Mua lần đầu — giảm 20%",
-    subtitle: "Nhập code PIXEL20 khi thanh toán. Áp dụng cho tất cả gói credits.",
-    cta: "Mua ngay →",
+    badge: "⚡ GÓI STARTER",
+    title: "500 credits · chỉ $24/tháng",
+    subtitle: "Bắt đầu tạo ảnh AI với 10 công cụ. Thanh toán theo tháng, không tự động gia hạn.",
+    cta: "Xem gói Starter →",
     href: "/pricing",
     bg: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 60%, #312e81 100%)",
     accent: "#c4b5fd",
-    pill: { icon: Clock, text: "Còn 2 ngày" },
+    pill: { icon: Zap, text: "~$0.048/credit" },
   },
   {
     badge: "⚡ NÂNG CẤP PRO",
-    title: "200 credits chỉ 99.000đ",
-    subtitle: "Tạo không giới hạn ảnh HD với 10 công cụ AI. Không hết hạn.",
+    title: "1500 credits · chỉ $66/tháng",
+    subtitle: "Tạo không giới hạn ảnh HD với 10 công cụ AI. Ưu tiên xử lý.",
     cta: "Nâng cấp ngay →",
     href: "/pricing",
     bg: "linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #a78bfa 100%)",
@@ -27,16 +27,16 @@ const PROMO_SLIDES = [
   },
   {
     badge: "💎 GÓI MAX",
-    title: "500 credits — tiết kiệm 50%",
-    subtitle: "Chỉ ~498đ/credit. Chất lượng HD tốt nhất. Ưu tiên xử lý.",
+    title: "4000 credits · chỉ $100/tháng",
+    subtitle: "Chỉ ~$0.025/credit. Chất lượng HD độc quyền. Hỗ trợ 24/7.",
     cta: "Xem gói Max →",
     href: "/pricing",
     bg: "linear-gradient(135deg, #1e1b4b 0%, #3730a3 50%, #4f46e5 100%)",
     accent: "#a5b4fc",
-    pill: { icon: Gift, text: "Giá tốt nhất" },
+    pill: { icon: Gift, text: "Tiết kiệm nhất" },
   },
   {
-    badge: "✨ MIỄN PHÍ THỬ",
+    badge: "✨ MIỂN PHÍ THử",
     title: "10 credits miễn phí khi đăng ký",
     subtitle: "Tạo ảnh ngay không cần thẻ. Trải nghiệm đầy đủ 10 tính năng AI.",
     cta: "Đăng ký miễn phí →",

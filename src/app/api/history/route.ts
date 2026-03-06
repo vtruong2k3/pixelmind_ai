@@ -28,8 +28,7 @@ export async function GET(req: NextRequest) {
         id: true,
         featureSlug: true,
         featureName: true,
-        outputUrl: true,
-        inputUrls: true,
+        outputUrl: true, // cần để check null
         quality: true,
         status: true,
         isPublic: true,
@@ -42,7 +41,13 @@ export async function GET(req: NextRequest) {
     const items = hasMore ? jobs.slice(0, limit) : jobs;
     const nextCursor = hasMore ? items[items.length - 1].id : undefined;
 
-    return NextResponse.json({ jobs: items, cursor: nextCursor, hasMore });
+    // Map: thay base64 outputUrl bằng proxy URL ngắn
+    const result = items.map((job) => ({
+      ...job,
+      outputUrl: job.outputUrl ? `/api/image/${job.id}` : null,
+    }));
+
+    return NextResponse.json({ jobs: result, cursor: nextCursor, hasMore });
   } catch (error) {
     console.error("[/api/history] Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

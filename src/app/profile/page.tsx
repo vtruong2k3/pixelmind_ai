@@ -111,8 +111,25 @@ export default function ProfilePage() {
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase mono"
                       style={{ background: "#fef3c7", color: "#d97706" }}>Admin</span>
                   )}
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase mono"
-                    style={{ background: "#f3f0ff", color: "#7c3aed" }}>{plan}</span>
+                  {/* Plan badge — mỗi gói 1 màu riêng */}
+                  {(() => {
+                    const p = plan.toLowerCase();
+                    const PLAN_STYLES: Record<string, { bg: string; color: string; border: string; label: string; shadow?: string }> = {
+                      free:    { bg: "linear-gradient(135deg,#f1f5f9,#e2e8f0)",         color: "#64748b", border: "#cbd5e1",    label: "Free",        shadow: "0 1px 6px rgba(100,116,139,0.15)" },
+                      starter: { bg: "linear-gradient(135deg,#06b6d4,#0891b2)",         color: "#fff",    border: "transparent", label: "Starter ⚡", shadow: "0 2px 10px rgba(6,182,212,0.4)" },
+                      pro:     { bg: "linear-gradient(135deg,#a855f7,#7c3aed,#6d28d9)", color: "#fff",    border: "transparent", label: "Pro ✦",       shadow: "0 2px 12px rgba(168,85,247,0.5)" },
+                      max:     { bg: "linear-gradient(135deg,#f59e0b,#d97706,#b45309)", color: "#fff",    border: "transparent", label: "Max 👑",      shadow: "0 2px 12px rgba(245,158,11,0.5)" },
+                    };
+                    const s = PLAN_STYLES[p] ?? PLAN_STYLES.free;
+                    return (
+                      <span
+                        className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase mono"
+                        style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, boxShadow: s.shadow }}
+                      >
+                        {s.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <p className="text-sm text-gray-400">{data?.user?.email}</p>
                 <p className="text-xs text-gray-300 mono mt-1">

@@ -54,11 +54,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Lấy credits + plan từ DB
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { credits: true, plan: true },
+          select: { credits: true, plan: true, planExpiresAt: true },
         });
         if (dbUser) {
           (session.user as any).credits = dbUser.credits;
           (session.user as any).plan = dbUser.plan;
+          (session.user as any).planExpiresAt = dbUser.planExpiresAt?.toISOString() ?? null;
         }
       }
       return session;
