@@ -118,3 +118,26 @@ export interface UserProfile {
   credits: number;
   plan: string;
 }
+// =============================================
+// Dashboard types
+// =============================================
+export interface DashboardStats {
+  totalJobs: number;
+  totalCreditsUsed: number;
+  jobsThisMonth: number;
+  creditsThisMonth: number;
+}
+
+export interface FeatureUsage {
+  featureSlug: string;
+  featureName: string;
+  _count: number;
+}
+
+export interface DashboardData {
+  user: UserProfile & { planExpiresAt: string | null; createdAt: Date };
+  stats: DashboardStats;
+  usageByFeature: FeatureUsage[];
+  recentJobs: HistoryItem[];
+  recentTransactions: { id: string; amount: number; type: string; description: string; createdAt: Date }[];
+}
