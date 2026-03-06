@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================
+// FEATURE - Lưu thông tin tính năng AI + Prompt
+// =============================================
+model Feature {
+  id          String   @id @default(cuid())
+  slug        String   @unique  // "swap_shirt", "to_anime", ...
+  name        String            // Tên hiển thị: "Thay áo", "Ảnh thật → Anime"
+  nameEn      String            // English name
+  description String?           // Mô tả tính năng
+  prompt      String   @db.Text // Prompt gốc gửi lên API
+  category    String            // "fashion", "creative", "photo_edit"
+  imageCount  Int      @default(1) // Số ảnh cần upload (1 hoặc 2)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  creditCost  Int      @default(1)  // Số credit tốn khi dùng
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  jobs        Job[]
+
+  @@index([category])
+  @@index([slug])
+}
+
+// =============================================
+// USER - Người dùng
+// =============================================
+model User {
+  id               String    @id @default(cuid())
+  name             String?
+  email            String    @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?   // null for OAuth users, bcrypt hash for credentials users
+  credits          Int       @default(10)
+  plan             String    @default("free") // "free", "pro", "unlimited"
+  stripeCustomerId String?   @unique          // Stripe customer ID
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  jobs               Job[]
+  accounts           Account[]
+  sessions           Session[]
+  likes              Like[]
+  creditTransactions CreditTransaction[]
+}
+
+// =============================================
+// JOB - Lịch sử gen ảnh
+// =============================================
+model Job {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  featureId   String
+  feature     Feature  @relation(fields: [featureId], references: [id])
+  featureSlug String   // Cache slug để query nhanh
+  featureName String   // Cache tên để hiển thị không cần join
+
+  // Prompt thực tế sử dụng (có thể khác prompt gốc nếu custom)
+  promptUsed  String   @db.Text
+
+  // Ảnh
+  inputUrls   String[] // URL ảnh input đã upload lên R2 (1 hoặc 2)
+  outputUrl   String?  // URL ảnh output kết quả
+
+  // Thông số gen
+  quality     String   @default("sd")   // "sd" hoặc "hd"
+  width       Int      @default(1024)
+  height      Int      @default(1536)
+  orientation String   @default("portrait") // "portrait", "landscape", "square"
+
+  // Trạng thái
+  status          String   @default("pending") // "pending", "processing", "done", "failed"
+  errorMsg        String?  // Thông báo lỗi nếu failed
+  chainhubTaskId  String?  // ChainHub task_id để poll status async
+
+  // Credits
+  creditUsed  Int      @default(1)
+
+  // Gallery settings
+  isPublic    Boolean  @default(true) // Hiển thị trong gallery công khai
+  title       String?  // User có thể đặt tiêu đề cho ảnh
+
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  likes       Like[]
+
+  @@index([userId])
+  @@index([featureId])
+  @@index([featureSlug])
+  @@index([status])
+  @@index([isPublic, status, createdAt])
+  @@index([userId, createdAt])
+}
+
+// =============================================
+// LIKE - Lượt thích ảnh trong Gallery
+// =============================================
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId]) // Mỗi user chỉ like 1 lần mỗi ảnh
+  @@index([jobId])
+  @@index([userId])
+}
+
+// =============================================
+// CREDIT TRANSACTION - Lịch sử credits
+// =============================================
+model CreditTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount      Int      // Số credits (dương = thêm vào, âm = trừ đi)
+  type        String   // "earn" | "spend" | "purchase" | "bonus"
+  description String   // Mô tả: "Đăng ký mới", "Tạo ảnh: Thay áo", "Mua 100 credits"
+
+  jobId       String?  // Liên kết đến Job nếu là spend
+  stripePaymentIntentId String? // Liên kết Stripe nếu là purchase
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+// =============================================
+// NEXTAUTH - Account & Session
+// =============================================
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

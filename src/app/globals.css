@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────
+   CSS VARIABLES
+───────────────────────────────────── */
+:root {
+  /* ── Brand accent — violet rich (was pale lavender) ── */
+  --lavender:       #7c3aed;          /* violet-700 — primary CTA */
+  --lavender-hover: #6d28d9;          /* violet-800 */
+  --lavender-bg:    #a78bfa;          /* violet-400 — hero text accent */
+  --lavender-light: #ede9fe;          /* violet-100 — icon bg on white */
+
+  /* ── CTA gradient — electric violet → indigo ── */
+  --cta-gradient: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+  --cta-gradient-hover: linear-gradient(135deg, #6d28d9 0%, #4338ca 100%);
+
+  /* ── Secondary button (dark bg) ── */
+  --btn-ghost-bg:       rgba(255,255,255,0.12);
+  --btn-ghost-border:   rgba(255,255,255,0.18);
+  --btn-ghost-bg-hover: rgba(255,255,255,0.22);
+
+  --radius-card: 1.75rem;
+  --radius-btn:  6px;
+
+  --announce-h: 40px;
+  --navbar-h:   64px;
+}
+
+
+/* ─────────────────────────────────────
+   BASE RESET
+───────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: #fff;
+  color: #0a0a0a;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ─────────────────────────────────────
+   SCROLLBAR — global thin dark style
+───────────────────────────────────── */
+::-webkit-scrollbar              { width: 4px; height: 4px; }
+::-webkit-scrollbar-track        { background: transparent; }
+::-webkit-scrollbar-thumb        { background: rgba(255,255,255,0.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover  { background: rgba(255,255,255,0.22); }
+::-webkit-scrollbar-corner       { background: transparent; }
+
+/* scrollbar-hide: fully invisible scrollbar (scroll still works) */
+.scrollbar-hide                              { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-hide::-webkit-scrollbar           { display: none; }
+
+/* studio-scroll: hidden by default, thin purple on hover */
+.studio-scroll                               { scrollbar-width: none; -ms-overflow-style: none; }
+.studio-scroll::-webkit-scrollbar            { width: 3px; }
+.studio-scroll::-webkit-scrollbar-track      { background: transparent; }
+.studio-scroll::-webkit-scrollbar-thumb      { background: transparent; border-radius: 3px; transition: background 0.2s; }
+.studio-scroll:hover::-webkit-scrollbar-thumb{ background: rgba(167,139,250,0.35); }
+
+/* ─────────────────────────────────────
+   GALLERY STRIP ANIMATION
+───────────────────────────────────── */
+@keyframes scroll-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.gallery-scroll { animation: scroll-left 40s linear infinite; }
+.gallery-scroll:hover { animation-play-state: paused; }
+
+/* ─────────────────────────────────────
+   HERO — subtle glow ring
+───────────────────────────────────── */
+.hero-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 80px 20px rgba(100, 160, 200, 0.25);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ─────────────────────────────────────
+   MONOSPACE LABELS (bfl.ai style)
+───────────────────────────────────── */
+.mono {
+  font-family: var(--font-geist-mono), "JetBrains Mono", "Courier New", monospace;
+  letter-spacing: 0.05em;
+}
+
+/* ─────────────────────────────────────
+   FEATURED MODEL TABS
+───────────────────────────────────── */
+.model-tab {
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+.model-tab:not(.active) { opacity: 0.35; }
+.model-tab.active { opacity: 1; }
+
+/* ─────────────────────────────────────
+   STUDIO DROPZONE
+───────────────────────────────────── */
+.dropzone-active {
+  border-color: var(--lavender) !important;
+  background: rgba(180, 167, 214, 0.05) !important;
+}
+
+/* ─────────────────────────────────────
+   SPINNER
+───────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.7s linear infinite; }
+
+/* ─────────────────────────────────────
+   QUALITY BUTTON (studio)
+───────────────────────────────────── */
+.quality-btn-active {
+  background: #22c55e !important;
+  color: #000 !important;
+  border-color: #22c55e !important;
+}
+
+/* ─────────────────────────────────────
+   ORIENTATION BUTTON (studio)
+───────────────────────────────────── */
+.orientation-btn-active {
+  background: transparent !important;
+  border-color: var(--lavender) !important;
+  color: var(--lavender) !important;
+}

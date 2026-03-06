@@ -1,0 +1,221 @@
+# Setup Next.js — pixelmind-ai AI Studio
+
+Dự án đã có nền móng Next.js 16 + React 19 + Tailwind CSS 4 + TypeScript.
+Kế hoạch này sẽ cài thêm các thư viện cần thiết, thiết lập folder structure chuẩn, và tích hợp API `generate.chainhub.tech`.
+
+## Thông tin Project Hiện tại
+- **Framework:** Next.js 16 (App Router), React 19, TypeScript
+- **Styling:** Tailwind CSS v4
+- **Package Manager:** pnpm
+- **Đường dẫn:** `d:\workspace\Nextjs\pixelmind-ai`
+- **AI API:** `POST https://generate.chainhub.tech/images/edits`
+
+---
+
+## Proposed Changes
+
+### 📦 1. Thư viện cần cài
+
+#### UI & Components
+| Thư viện | Lệnh cài | Mục đích |
+|---|---|---|
+| `shadcn/ui` | `pnpm dlx shadcn@latest init` | Component library chính |
+| `lucide-react` | tự cài khi init shadcn | Icons |
+| `framer-motion` | `pnpm add framer-motion` | Animation mượt |
+| `class-variance-authority` | tự cài khi init shadcn | CVA utility |
+| `clsx` + `tailwind-merge` | tự cài khi init shadcn | Class merging |
+
+#### Upload & Image
+| Thư viện | Lệnh cài | Mục đích |
+|---|---|---|
+| `react-dropzone` | `pnpm add react-dropzone` | Kéo thả upload ảnh |
+| `react-image-crop` | `pnpm add react-image-crop` | Crop / mask ảnh |
+| `browser-image-compression` | `pnpm add browser-image-compression` | Nén ảnh trước khi upload |
+
+#### State & Data Fetching
+| Thư viện | Lệnh cài | Mục đích |
+|---|---|---|
+| `zustand` | `pnpm add zustand` | Global state (credits, user...) |
+| `@tanstack/react-query` | `pnpm add @tanstack/react-query` | Polling job status, cache kết quả |
+| `axios` | `pnpm add axios` | HTTP client gọi API chainhub |
+
+#### Auth
+| Thư viện | Lệnh cài | Mục đích |
+|---|---|---|
+| `next-auth` | `pnpm add next-auth@beta` | Auth (Google + Email) |
+| `@auth/prisma-adapter` | `pnpm add @auth/prisma-adapter` | Kết nối Auth với Prisma |
+
+#### Database
+| Thư viện | Lệnh cài | Mục đích |
+|---|---|---|
+| `prisma` | `pnpm add -D prisma` | ORM |
+| `@prisma/client` | `pnpm add @prisma/client` | Prisma client |
+
+#### Storage (Cloudflare R2 / S3)
+| Thư viện | Lệnh cài | Mục đích |
+|---|---|---|
+| `@aws-sdk/client-s3` | `pnpm add @aws-sdk/client-s3` | Upload/download ảnh từ R2 |
+| `@aws-sdk/s3-request-presigner` | `pnpm add @aws-sdk/s3-request-presigner` | Tạo presigned URL |
+
+#### Notification & UX
+| Thư viện | Lệnh cài | Mục đích |
+|---|---|---|
+| `sonner` | `pnpm add sonner` | Toast thông báo đẹp |
+| `next-themes` | `pnpm add next-themes` | Dark/Light mode |
+
+#### Payment
+| Thư viện | Lệnh cài | Mục đích |
+|---|---|---|
+| `stripe` | `pnpm add stripe` | Stripe server SDK |
+| `@stripe/stripe-js` | `pnpm add @stripe/stripe-js` | Stripe client SDK |
+
+---
+
+### 🗂️ 2. Folder Structure
+
+```
+src/
+├── app/
+│   ├── (auth)/
+│   │   ├── login/page.tsx
+│   │   └── register/page.tsx
+│   ├── (dashboard)/
+│   │   ├── layout.tsx           ← Sidebar + Header layout
+│   │   ├── page.tsx             ← Dashboard home
+│   │   ├── fashion/page.tsx     ← Module Fashion (thay áo, đổi màu)
+│   │   ├── product/page.tsx     ← Module Product Photography
+│   │   ├── creative/page.tsx    ← Module Creative (anime, phục chế)
+│   │   └── history/page.tsx     ← Lịch sử gen ảnh
+│   ├── api/
+│   │   ├── generate/route.ts    ← Proxy → chainhub API (ẩn API key)
+│   │   ├── upload/route.ts      ← Upload ảnh lên R2
+│   │   ├── jobs/[id]/route.ts   ← Lấy trạng thái job
+│   │   └── auth/[...nextauth]/route.ts
+│   ├── globals.css
+│   └── layout.tsx
+├── components/
+│   ├── ui/                      ← shadcn components (auto-gen)
+│   ├── layout/
+│   │   ├── Sidebar.tsx
+│   │   ├── Header.tsx
+│   │   └── MobileNav.tsx
+│   ├── studio/
+│   │   ├── ImageUpload.tsx      ← Dropzone upload ảnh
+│   │   ├── FeatureCard.tsx      ← Card chọn tính năng
+│   │   ├── ResultViewer.tsx     ← Hiển thị kết quả
+│   │   ├── QualitySelector.tsx  ← SD / HD toggle
+│   │   └── PromptConfig.tsx     ← Prompt template ẩn
+│   └── credits/
+│       ├── CreditBadge.tsx      ← Hiển thị số credit
+│       └── BuyCreditsModal.tsx  ← Modal mua credit
+├── lib/
+│   ├── chainhub.ts              ← Hàm gọi chainhub API
+│   ├── r2.ts                    ← Hàm upload/download R2
+│   ├── prisma.ts                ← Prisma client singleton
+│   ├── auth.ts                  ← NextAuth config
+│   └── utils.ts                 ← cn(), formatters...
+├── hooks/
+│   ├── useGenerate.ts           ← Hook gọi generate + polling
+│   ├── useCredits.ts            ← Hook lấy credits user
+│   └── useUpload.ts             ← Hook upload ảnh
+├── store/
+│   └── useStudioStore.ts        ← Zustand store (job, images, state)
+├── types/
+│   └── index.ts                 ← TypeScript types
+└── prisma/
+    └── schema.prisma            ← Database schema
+```
+
+---
+
+### 🗄️ 3. Prisma Schema
+
+```prisma
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  credits   Int      @default(10)
+  plan      String   @default("free")
+  createdAt DateTime @default(now())
+  jobs      Job[]
+  txs       CreditTransaction[]
+  accounts  Account[]
+  sessions  Session[]
+}
+
+model Job {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  feature    String   ← "fashion", "product", "creative"
+  prompt     String
+  inputUrls  String[] ← Mảng URL ảnh input
+  outputUrl  String?
+  quality    String   @default("sd")
+  status     String   @default("pending") ← pending/processing/done/failed
+  credits    Int      @default(1)
+  createdAt  DateTime @default(now())
+}
+
+model CreditTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Int
+  type      String   ← "purchase", "usage", "bonus"
+  stripeId  String?
+  createdAt DateTime @default(now())
+}
+```
+
+---
+
+### ⚙️ 4. API Route: `/api/generate`
+
+```typescript
+// Nhận request từ Frontend, proxy lên chainhub, trừ credits
+POST /api/generate
+Body: FormData { feature, image, image_2?, quality, orientation }
+
+Flow:
+1. Verify user session (NextAuth)
+2. Kiểm tra credits đủ không
+3. Gửi FormData lên chainhub.tech/images/edits
+4. Lưu Job vào DB + trừ credits
+5. Trả về outputUrl cho frontend
+```
+
+---
+
+### 🎨 5. Prompt Templates (Hard-coded)
+
+Mỗi tính năng có 1 prompt mặc định, user không cần gõ:
+
+```typescript
+export const FEATURE_PROMPTS = {
+  swap_clothing: "Replace the shirt in image 2 with the shirt in image 1...",
+  swap_background: "Replace the scene in image 1 with the scene in image 2...",
+  swap_face: "Replace the face in image 1 with the face in image 2...",
+  change_color: "The color of the outfit in the photo turns red...",
+  to_anime: "Transform photos into anime style",
+  restore_photo: "Restore this old photo into a clean, high-quality...",
+  // ...
+}
+```
+
+---
+
+## Verification Plan
+
+### Automated
+- `pnpm build` — kiểm tra không có TypeScript errors
+- `pnpm lint` — kiểm tra code quality
+
+### Manual
+1. Chạy `pnpm dev` → mở `http://localhost:3000`
+2. Đăng nhập bằng Google (NextAuth)
+3. Thử upload 2 ảnh vào tính năng "Thay áo"
+4. Bấm Generate → kiểm tra ảnh output trả về đúng
+5. Kiểm tra credits bị trừ trong DB
