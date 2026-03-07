@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { submitTask } from "@/lib/chainhub";
+import { hasMinRole } from "@/lib/roles";
 
 // POST /api/generate
 // Flow:
 // 1. Kiểm tra auth + credits (đủ không?)
 // 2. Trừ credits ngay khi submit
 // 3. Submit ảnh lên ChainHub → nhận task_id
-// 4. Tạo Job trong DB với status="processing"
+// 4. Tạo Job trong DB với status="PROCESSING"
 // 5. Trả về { jobId } — frontend poll /api/generate/status
 // Nếu ảnh FAIL → hoàn credits lại (refund ở status route)
 
@@ -19,8 +20,10 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const userId = session.user.id;
-    const isAdmin = (session.user as any).isAdmin === true;
+    const userId  = session.user.id;
+    const role    = (session.user as any).role ?? "USER";
+    // STAFF và ADMIN đều được miễn credit
+    const isAdmin = hasMinRole(role, "STAFF");
 
     // 2. Parse form
     const formData = await req.formData();
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
           quality,
           orientation,
           isPublic,
-          status:      "processing",
+          status:      "PROCESSING",
           creditUsed:  feature.creditCost,
         },
       }),

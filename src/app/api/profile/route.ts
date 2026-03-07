@@ -23,7 +23,7 @@ export async function GET() {
         select: { id: true, amount: true, type: true, description: true, createdAt: true },
       }),
       prisma.job.aggregate({
-        where: { userId, status: "done" },
+        where: { userId, status: "COMPLETED" },
         _count: { id: true },
         _sum: { creditUsed: true },
       }),

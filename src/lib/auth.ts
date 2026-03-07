@@ -4,69 +4,77 @@ import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-
-// Admin emails — set in env: ADMIN_EMAILS="email1@x.com,email2@x.com"
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map(e => e.trim().toLowerCase());
+import type { UserRole } from "@/lib/roles";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
-  session: {
-    strategy: "jwt",
-  },
+  session: { strategy: "jwt" },
   providers: [
-    // Keep Google from authConfig
     ...authConfig.providers,
-    // Add Credentials provider (Node.js only – bcrypt not edge-compatible)
     Credentials({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email:    { label: "Email",    type: "email"    },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = credentials?.email as string | undefined;
+        const email    = credentials?.email    as string | undefined;
         const password = credentials?.password as string | undefined;
         if (!email || !password) return null;
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.password) return null; // OAuth-only user or not found
+        if (!user || !user.password) return null;
 
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
 
-        return { id: user.id, name: user.name, email: user.email, image: user.image };
+        return {
+          id:    user.id,
+          name:  user.name,
+          email: user.email,
+          image: user.image,
+          role:  user.role as UserRole,
+        };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Khi login lần đầu
       if (user) {
-        token.id = user.id;
-        token.isAdmin = ADMIN_EMAILS.includes((user.email ?? "").toLowerCase());
+        token.id   = user.id;
+        token.role = (user as any).role ?? "USER";
+      }
+      // Khi session refresh hoặc update — đọc role mới nhất từ DB
+      if (token.id && (trigger === "update" || !token.role)) {
+        const dbUser = await prisma.user.findUnique({
+          where:  { id: token.id as string },
+          select: { role: true },
+        });
+        if (dbUser) token.role = dbUser.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (token.id) {
         session.user.id = token.id as string;
-        (session.user as any).isAdmin = token.isAdmin ?? false;
-        // Lấy credits + plan từ DB
+        (session.user as any).role = token.role ?? "USER";
+
+        // Lấy credits + plan từ DB (fresh mỗi session call)
         const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { credits: true, plan: true, planExpiresAt: true },
+          where:  { id: token.id as string },
+          select: { credits: true, plan: true, planExpiresAt: true, role: true },
         });
         if (dbUser) {
-          (session.user as any).credits = dbUser.credits;
-          (session.user as any).plan = dbUser.plan;
+          (session.user as any).credits      = dbUser.credits;
+          (session.user as any).plan         = dbUser.plan;
           (session.user as any).planExpiresAt = dbUser.planExpiresAt?.toISOString() ?? null;
+          (session.user as any).role          = dbUser.role; // always fresh
         }
       }
       return session;
     },
   },
-  pages: {
-    signIn: "/login",
-  },
+  pages: { signIn: "/login" },
 });
-

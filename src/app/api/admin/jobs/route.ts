@@ -1,33 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireRoleResponse } from "@/lib/roles";
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
-  .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
-
-function isAdminUser(req: any) {
-  const session = req.auth;
-  const email = (session?.user?.email ?? "").toLowerCase();
-  return ADMIN_EMAILS.includes(email) || (session?.user as any)?.isAdmin;
-}
-
-// GET /api/admin/jobs?page=1&limit=20&status=&quality=&feature=&search=&order=desc
-export const GET = auth(async function GET(req) {
-  if (!isAdminUser(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+// GET /api/admin/jobs
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  if (guard) return guard;
 
   const { searchParams } = new URL(req.url);
   const page    = Math.max(1, parseInt(searchParams.get("page")   ?? "1"));
   const limit   = Math.min(100, parseInt(searchParams.get("limit")  ?? "20"));
   const status  = searchParams.get("status")  ?? "";
   const quality = searchParams.get("quality") ?? "";
-  const feature = searchParams.get("feature") ?? "";
   const search  = searchParams.get("search")  ?? "";
   const order   = (searchParams.get("order")  ?? "desc") as "asc" | "desc";
 
   const where: any = {};
-  if (status  && status !== "all")  where.status = status;
+  if (status  && status  !== "all") where.status  = status;
   if (quality && quality !== "all") where.quality = quality;
-  if (feature && feature !== "all") where.featureSlug = feature;
   if (search) {
     where.user = { OR: [
       { name:  { contains: search, mode: "insensitive" } },
@@ -35,44 +27,39 @@ export const GET = auth(async function GET(req) {
     ]};
   }
 
-  const [jobs, total] = await Promise.all([
+  const [jobs, total, statusCounts] = await Promise.all([
     prisma.job.findMany({
-      where,
-      orderBy: { createdAt: order },
-      skip: (page - 1) * limit,
-      take: limit,
+      where, orderBy: { createdAt: order },
+      skip: (page - 1) * limit, take: limit,
       select: {
         id: true, featureName: true, featureSlug: true,
         status: true, quality: true, creditUsed: true,
-        width: true, height: true, orientation: true,
-        outputUrl: true, errorMsg: true,
-        isPublic: true, createdAt: true,
+        outputUrl: true, errorMsg: true, createdAt: true,
         user: { select: { id: true, name: true, email: true, image: true } },
       },
     }),
     prisma.job.count({ where }),
+    prisma.job.groupBy({ by: ["status"], _count: { status: true } }),
   ]);
-
-  // Status summary for the current filter (without status filter)
-  const statusCounts = await prisma.job.groupBy({
-    by: ["status"],
-    _count: { status: true },
-  });
 
   const statusMap: Record<string, number> = {};
   statusCounts.forEach(s => { statusMap[s.status] = s._count.status; });
 
   return NextResponse.json({
-    jobs,
-    total,
-    page,
-    pageSize: limit,
-    totalPages: Math.ceil(total / limit),
-    statusSummary: {
-      done:       statusMap["COMPLETED"]       ?? 0,
-      pending:    statusMap["PENDING"]    ?? 0,
-      processing: statusMap["PROCESSING"] ?? 0,
-      failed:     statusMap["FAILED"]     ?? 0,
-    },
+    jobs: jobs.map(j => ({ ...j, createdAt: j.createdAt.toISOString(), outputUrl: j.outputUrl ? `/api/image/${j.id}` : null })),
+    total, page, totalPages: Math.ceil(total / limit),
+    statusSummary: statusMap,
   });
-});
+}
+
+// DELETE /api/admin/jobs — xóa job theo id trong body
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  if (guard) return guard;
+
+  const { jobId } = await req.json();
+  if (!jobId) return NextResponse.json({ error: "jobId required" }, { status: 400 });
+  await prisma.job.delete({ where: { id: jobId } });
+  return NextResponse.json({ ok: true });
+}

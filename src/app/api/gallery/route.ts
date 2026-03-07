@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const featureSlug = searchParams.get("feature") ?? undefined;
 
     const where = {
-      status: "done",
+      status: "COMPLETED",
       isPublic: true,
       outputUrl: { not: null },
       ...(featureSlug ? { featureSlug } : {}),

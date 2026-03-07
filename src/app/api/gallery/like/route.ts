@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     // Kiểm tra job tồn tại và public
     const job = await prisma.job.findFirst({
-      where: { id: jobId, isPublic: true, status: "done" },
+      where: { id: jobId, isPublic: true, status: "COMPLETED" },
       select: { id: true },
     });
     if (!job) {

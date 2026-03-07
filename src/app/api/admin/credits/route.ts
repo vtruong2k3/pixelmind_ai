@@ -1,19 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireRoleResponse } from "@/lib/roles";
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
-  .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
-
-function isAdminUser(req: any) {
-  const session = req.auth;
-  const email = (session?.user?.email ?? "").toLowerCase();
-  return ADMIN_EMAILS.includes(email) || (session?.user as any)?.isAdmin;
-}
-
-// GET /api/admin/credits?page=1&limit=20&type=&search=&order=desc
-export const GET = auth(async function GET(req) {
-  if (!isAdminUser(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+// GET /api/admin/credits
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  if (guard) return guard;
 
   const { searchParams } = new URL(req.url);
   const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
@@ -33,90 +27,49 @@ export const GET = auth(async function GET(req) {
 
   const [transactions, total, aggregates] = await Promise.all([
     prisma.creditTransaction.findMany({
-      where,
-      orderBy: { createdAt: order },
-      skip: (page - 1) * limit,
-      take: limit,
+      where, orderBy: { createdAt: order },
+      skip: (page - 1) * limit, take: limit,
       select: {
-        id: true, amount: true, type: true, description: true, createdAt: true,
-        jobId: true,
+        id: true, amount: true, type: true, description: true, createdAt: true, jobId: true,
         user: { select: { id: true, name: true, email: true, image: true } },
       },
     }),
     prisma.creditTransaction.count({ where }),
-
-    // Summary aggregates (unfiltered except by search)
     Promise.all([
-      prisma.creditTransaction.aggregate({
-        where: { type: "purchase" },
-        _sum: { amount: true },
-        _count: { id: true },
-      }),
-      prisma.creditTransaction.aggregate({
-        where: { type: "spend" },
-        _sum: { amount: true },
-        _count: { id: true },
-      }),
-      prisma.creditTransaction.aggregate({
-        where: { type: "earn" },
-        _sum: { amount: true },
-        _count: { id: true },
-      }),
-      prisma.creditTransaction.aggregate({
-        where: { type: "bonus" },
-        _sum: { amount: true },
-        _count: { id: true },
-      }),
+      prisma.creditTransaction.aggregate({ where: { type: "purchase" }, _sum: { amount: true }, _count: { id: true } }),
+      prisma.creditTransaction.aggregate({ where: { type: "spend" },    _sum: { amount: true }, _count: { id: true } }),
+      prisma.creditTransaction.aggregate({ where: { type: "earn" },     _sum: { amount: true }, _count: { id: true } }),
+      prisma.creditTransaction.aggregate({ where: { type: "bonus" },    _sum: { amount: true }, _count: { id: true } }),
     ]),
   ]);
 
   const [purchaseAgg, spendAgg, earnAgg, bonusAgg] = aggregates;
-
   return NextResponse.json({
-    transactions,
-    total,
-    page,
-    pageSize: limit,
-    totalPages: Math.ceil(total / limit),
+    transactions: transactions.map(t => ({ ...t, createdAt: t.createdAt.toISOString() })),
+    total, page, totalPages: Math.ceil(total / limit),
     summary: {
-      totalPurchased: purchaseAgg._sum.amount ?? 0,
-      purchaseCount:  purchaseAgg._count.id ?? 0,
-      totalSpent:     Math.abs(spendAgg._sum.amount ?? 0),
-      spendCount:     spendAgg._count.id ?? 0,
-      totalEarned:    earnAgg._sum.amount ?? 0,
-      earnCount:      earnAgg._count.id ?? 0,
-      totalBonus:     bonusAgg._sum.amount ?? 0,
-      bonusCount:     bonusAgg._count.id ?? 0,
+      totalPurchased: purchaseAgg._sum.amount ?? 0, purchaseCount: purchaseAgg._count.id,
+      totalSpent:     Math.abs(spendAgg._sum.amount ?? 0), spendCount: spendAgg._count.id,
+      totalEarned:    earnAgg._sum.amount ?? 0, earnCount: earnAgg._count.id,
+      totalBonus:     bonusAgg._sum.amount ?? 0, bonusCount: bonusAgg._count.id,
     },
   });
-});
+}
 
-// POST /api/admin/credits  — manually add credits to a user
-export const POST = auth(async function POST(req) {
-  if (!isAdminUser(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+// POST /api/admin/credits — tặng credits (không giới hạn)
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  if (guard) return guard;
 
-  const body = await req.json();
-  const { userId, amount, description } = body;
-
+  const { userId, amount, description } = await req.json();
   if (!userId || typeof amount !== "number" || !description) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
-  const [user, transaction] = await prisma.$transaction([
-    prisma.user.update({
-      where: { id: userId },
-      data: { credits: { increment: amount } },
-      select: { id: true, name: true, email: true, credits: true },
-    }),
-    prisma.creditTransaction.create({
-      data: {
-        userId,
-        amount,
-        type: amount > 0 ? "earn" : "spend",
-        description,
-      },
-    }),
+  const [user] = await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { credits: { increment: amount } }, select: { id: true, name: true, email: true, credits: true } }),
+    prisma.creditTransaction.create({ data: { userId, amount, type: amount > 0 ? "bonus" : "spend", description } }),
   ]);
-
-  return NextResponse.json({ ok: true, user, transaction });
-});
+  return NextResponse.json({ ok: true, user });
+}

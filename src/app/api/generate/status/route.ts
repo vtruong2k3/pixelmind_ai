@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pollOnce } from "@/lib/chainhub";
+import { hasMinRole } from "@/lib/roles";
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,21 +34,21 @@ export async function GET(req: NextRequest) {
     }
 
     // Đã xong từ lần poll trước
-    if (job.status === "done" && job.outputUrl) {
-      return NextResponse.json({ status: "done", outputUrl: `/api/image/${job.id}` });
+    if (job.status === "COMPLETED" && job.outputUrl) {
+      return NextResponse.json({ status: "COMPLETED", outputUrl: `/api/image/${job.id}` });
     }
-    if (job.status === "failed") {
-      return NextResponse.json({ status: "failed", error: job.errorMsg ?? "Tạo ảnh thất bại" });
+    if (job.status === "FAILED") {
+      return NextResponse.json({ status: "FAILED", error: job.errorMsg ?? "Tạo ảnh thất bại" });
     }
 
     if (!job.chainhubTaskId) {
-      return NextResponse.json({ status: "processing" });
+      return NextResponse.json({ status: "PROCESSING" });
     }
 
     // Poll ChainHub 1 lần
     const result = await pollOnce(job.chainhubTaskId);
     if (!result) {
-      return NextResponse.json({ status: "processing" });
+      return NextResponse.json({ status: "PROCESSING" });
     }
 
     if (result.status === "COMPLETED" && result.outputUrl) {
@@ -70,19 +71,20 @@ export async function GET(req: NextRequest) {
 
 
       await prisma.$executeRaw`
-        UPDATE "Job" SET status = 'done', "outputUrl" = ${storedUrl}, "updatedAt" = NOW()
+        UPDATE "Job" SET status = 'COMPLETED', "outputUrl" = ${storedUrl}, "updatedAt" = NOW()
         WHERE id = ${job.id}
       `;
       // Credits đã bị trừ từ lúc submit — không cần hành động gì thêm
       return NextResponse.json({
-        status: "done",
+        status: "COMPLETED",
         outputUrl: `/api/image/${job.id}`,
       });
     }
 
     if (result.status === "FAILED") {
-      // Hoàn credits lại cho user
-      const isAdmin = (session.user as any).isAdmin === true;
+      // Hoàn credits lại cho user (STAFF/ADMIN bypass credit)
+      const role = (session.user as any).role ?? "USER";
+      const isAdmin = hasMinRole(role, "STAFF");
       if (!isAdmin) {
         const features = await prisma.$queryRaw<Array<{ creditCost: number; name: string }>>`
           SELECT f."creditCost", f.name FROM "Feature" f
@@ -108,13 +110,23 @@ export async function GET(req: NextRequest) {
         }
       }
       await prisma.$executeRaw`
-        UPDATE "Job" SET status = 'failed', "errorMsg" = 'ChainHub task failed', "updatedAt" = NOW()
+        UPDATE "Job" SET status = 'FAILED', "errorMsg" = 'ChainHub task failed', "updatedAt" = NOW()
         WHERE id = ${job.id}
       `;
-      return NextResponse.json({ status: "failed", error: "Tạo ảnh thất bại. Credits đã được hoàn lại." });
+      return NextResponse.json({ status: "FAILED", error: "Tạo ảnh thất bại. Credits đã được hoàn lại." });
     }
 
-    return NextResponse.json({ status: result.status ?? "processing" });
+    // ChainHub đang QUEUED hoặc PROCESSING — đồng bộ status vào DB nếu khác
+    const chainhubStatus = result.status ?? "PROCESSING";
+    // Cập nhật DB nếu status khác với trong DB (QUEUED ≠ PROCESSING)
+    if (chainhubStatus !== job.status && (chainhubStatus === "QUEUED" || chainhubStatus === "PROCESSING")) {
+      await prisma.$executeRaw`
+        UPDATE "Job" SET status = ${chainhubStatus}, "updatedAt" = NOW()
+        WHERE id = ${job.id}
+      `;
+    }
+    return NextResponse.json({ status: chainhubStatus });
+
   } catch (error) {
     console.error("[/api/generate/status] Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

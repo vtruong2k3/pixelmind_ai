@@ -1,4 +1,9 @@
 // =============================================
+// Role types
+// =============================================
+export type { UserRole } from "@/lib/roles";
+
+// =============================================
 // Feature types
 // =============================================
 export interface Feature {
@@ -20,7 +25,7 @@ export interface Feature {
 // =============================================
 // Job types
 // =============================================
-export type JobStatus = "pending" | "processing" | "done" | "failed";
+export type JobStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
 export type JobQuality = "sd" | "hd";
 export type JobOrientation = "portrait" | "landscape" | "square";
 

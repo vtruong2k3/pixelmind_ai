@@ -1,38 +1,22 @@
 // src/services/adminService.ts
-// Centralised API layer for all /admin pages — uses axios
+// Admin-level API calls: full system management
 
-import axios from "axios";
+import api from "./api";
 
-// ─────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────
 
-export interface AdminOverviewData {
+export interface AdminOverview {
   overview: {
     totalUsers: number;
     totalJobs: number;
     newUsersThisMonth: number;
     newJobsThisMonth: number;
-    totalCreditsEarned: number;
-    creditsEarnedAllTime: number;
+    totalRevenue?: number;
   };
-  jobStatus: {
-    done: number;
-    pending: number;
-    processing: number;
-    failed: number;
-  };
+  jobStatus: Record<string, number>;
   planDistribution: { plan: string; count: number }[];
   featureUsage: { slug: string; name: string; count: number }[];
-  chartDays: {
-    date: string;
-    label: string;
-    users: number;
-    jobs: number;
-    creditsEarned: number;
-  }[];
-  recentUsers: AdminUser[];
-  recentJobs: AdminJob[];
+  chartDays: { date: string; label: string; users: number; jobs: number; credits: number }[];
 }
 
 export interface AdminUser {
@@ -40,17 +24,19 @@ export interface AdminUser {
   name: string | null;
   email: string;
   image: string | null;
+  role: string;
   credits: number;
   plan: string;
   planExpiresAt: string | null;
   createdAt: string;
-  updatedAt?: string;
   _count?: { jobs: number; creditTransactions: number };
 }
 
-export interface AdminUserDetail extends AdminUser {
-  jobs: AdminJob[];
-  creditTransactions: AdminTransaction[];
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  totalPages: number;
 }
 
 export interface AdminJob {
@@ -60,14 +46,18 @@ export interface AdminJob {
   status: string;
   quality: string;
   creditUsed: number;
-  width?: number;
-  height?: number;
-  orientation?: string;
-  outputUrl?: string | null;
-  errorMsg?: string | null;
-  isPublic?: boolean;
+  outputUrl: string | null;
+  errorMsg: string | null;
   createdAt: string;
-  user?: { id: string; name: string | null; email: string; image: string | null };
+  user: { id: string; name: string | null; email: string; image: string | null };
+}
+
+export interface AdminJobsResponse {
+  jobs: AdminJob[];
+  total: number;
+  page: number;
+  totalPages: number;
+  statusSummary: Record<string, number>;
 }
 
 export interface AdminTransaction {
@@ -76,151 +66,132 @@ export interface AdminTransaction {
   type: string;
   description: string;
   createdAt: string;
-  jobId?: string | null;
-  user?: { id: string; name: string | null; email: string; image: string | null };
+  jobId: string | null;
+  user: { id: string; name: string | null; email: string; image: string | null };
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-export interface AdminUserListResponse {
-  users: AdminUser[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-export interface AdminJobListResponse {
-  jobs: AdminJob[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  statusSummary: { done: number; pending: number; processing: number; failed: number };
-}
-
-export interface AdminCreditListResponse {
+export interface AdminTransactionsResponse {
   transactions: AdminTransaction[];
   total: number;
   page: number;
-  pageSize: number;
   totalPages: number;
   summary: {
-    totalPurchased: number;
-    purchaseCount: number;
-    totalSpent: number;
-    spendCount: number;
-    totalEarned: number;
-    earnCount: number;
-    totalBonus: number;
-    bonusCount: number;
+    totalPurchased: number; purchaseCount: number;
+    totalSpent: number; spendCount: number;
+    totalEarned: number; earnCount: number;
+    totalBonus: number; bonusCount: number;
   };
 }
 
-export interface UserListParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  plan?: string;
-  sort?: string;
-  order?: "asc" | "desc";
+export interface AdminFeature {
+  id: string;
+  slug: string;
+  name: string;
+  nameEn: string;
+  description: string | null;
+  prompt: string;
+  category: string;
+  imageCount: number;
+  sortOrder: number;
+  isActive: boolean;
+  creditCost: number;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { jobs: number };
 }
 
-export interface JobListParams {
-  page?: number;
-  limit?: number;
-  status?: string;
-  quality?: string;
-  feature?: string;
-  search?: string;
-  order?: "asc" | "desc";
-}
-
-export interface CreditListParams {
-  page?: number;
-  limit?: number;
-  type?: string;
-  search?: string;
-  order?: "asc" | "desc";
-}
-
-export interface EditUserPayload {
-  credits?: number;
-  plan?: string;
-  planExpiresAt?: string | null;
-}
-
-export interface AddCreditsPayload {
-  userId: string;
-  amount: number;
-  description: string;
-}
-
-// ─────────────────────────────────────────
-// Axios instance
-// ─────────────────────────────────────────
-
-const api = axios.create({ baseURL: "/api/admin" });
-
-// ─────────────────────────────────────────
-// Service
-// ─────────────────────────────────────────
+// ─── Service Methods ──────────────────────────────────────────
 
 export const adminService = {
-  // ── Stats / Overview ──────────────────
-  /** Fetch full system statistics for the admin overview page */
-  async getStats(): Promise<AdminOverviewData> {
-    const { data } = await api.get<AdminOverviewData>("/stats");
+  /** Dashboard overview data */
+  async getOverview(): Promise<AdminOverview> {
+    const { data } = await api.get<AdminOverview>("/admin/stats");
     return data;
   },
 
-  // ── Users ─────────────────────────────
-  /** List users with pagination, search, plan filter, sort */
-  async getUsers(params: UserListParams = {}): Promise<AdminUserListResponse> {
-    const { data } = await api.get<AdminUserListResponse>("/users", { params });
+  /** Users */
+  async getUsers(params?: {
+    page?: number; limit?: number; search?: string; role?: string; plan?: string; order?: string;
+  }): Promise<AdminUsersResponse> {
+    const { data } = await api.get<AdminUsersResponse>("/admin/users", { params });
     return data;
   },
 
-  /** Get full detail of a single user (includes recent jobs & transactions) */
-  async getUserById(id: string): Promise<AdminUserDetail> {
-    const { data } = await api.get<{ user: AdminUserDetail }>(`/users/${id}`);
-    return data.user;
-  },
-
-  /** Update a user's credits, plan, or planExpiresAt */
-  async updateUser(id: string, payload: EditUserPayload): Promise<AdminUser> {
-    const { data } = await api.patch<{ ok: boolean; user: AdminUser }>(`/users/${id}`, payload);
-    return data.user;
-  },
-
-  /** Permanently delete a user account */
-  async deleteUser(id: string): Promise<void> {
-    await api.delete(`/users/${id}`);
-  },
-
-  // ── Jobs ──────────────────────────────
-  /** List jobs with pagination, status / quality / feature / user search */
-  async getJobs(params: JobListParams = {}): Promise<AdminJobListResponse> {
-    const { data } = await api.get<AdminJobListResponse>("/jobs", { params });
+  async getUser(id: string) {
+    const { data } = await api.get(`/admin/users/${id}`);
     return data;
   },
 
-  // ── Credit Transactions ───────────────
-  /** List credit transactions with pagination, type filter, user search */
-  async getCredits(params: CreditListParams = {}): Promise<AdminCreditListResponse> {
-    const { data } = await api.get<AdminCreditListResponse>("/credits", { params });
+  async updateUser(id: string, payload: { role?: string; credits?: number; creditAmount?: number; creditDescription?: string; plan?: string }) {
+    const { data } = await api.patch(`/admin/users/${id}`, payload);
     return data;
   },
 
-  /** Manually add (or subtract) credits for a user */
-  async addCredits(payload: AddCreditsPayload): Promise<{ user: AdminUser; transaction: AdminTransaction }> {
-    const { data } = await api.post<{ ok: boolean; user: AdminUser; transaction: AdminTransaction }>("/credits", payload);
+  async deleteUser(id: string) {
+    const { data } = await api.delete(`/admin/users/${id}`);
     return data;
+  },
+
+  /** Jobs */
+  async getJobs(params?: {
+    page?: number; limit?: number; status?: string; quality?: string; search?: string; order?: string;
+  }): Promise<AdminJobsResponse> {
+    const { data } = await api.get<AdminJobsResponse>("/admin/jobs", { params });
+    return data;
+  },
+
+  async deleteJob(jobId: string) {
+    const { data } = await api.delete("/admin/jobs", { data: { jobId } });
+    return data;
+  },
+
+  async syncJobs(maxJobs = 20): Promise<{ message: string; stats: Record<string, number>; results: { id: string; oldStatus: string; newStatus: string }[] }> {
+    const { data } = await api.post("/admin/jobs/sync", { maxJobs });
+    return data;
+  },
+
+
+  /** Credits */
+  async getTransactions(params?: {
+    page?: number; limit?: number; type?: string; search?: string; order?: string;
+  }): Promise<AdminTransactionsResponse> {
+    const { data } = await api.get<AdminTransactionsResponse>("/admin/credits", { params });
+    return data;
+  },
+
+  async giftCredits(userId: string, amount: number, description: string) {
+    const { data } = await api.post("/admin/credits", { userId, amount, description });
+    return data;
+  },
+
+  /** Features */
+  async getFeatures(): Promise<AdminFeature[]> {
+    const { data } = await api.get<{ features: AdminFeature[] }>("/admin/features");
+    return data.features;
+  },
+
+  async updateFeature(id: string, payload: Partial<AdminFeature>) {
+    const { data } = await api.patch(`/admin/features/${id}`, payload);
+    return data.feature;
+  },
+
+  async createFeature(payload: {
+    slug: string; name: string; nameEn?: string; description?: string;
+    prompt: string; category: string; imageCount?: number; creditCost?: number; sortOrder?: number;
+  }): Promise<AdminFeature> {
+    const { data } = await api.post<{ feature: AdminFeature }>("/admin/features", payload);
+    return data.feature;
+  },
+
+  async deleteFeature(id: string) {
+    const { data } = await api.delete(`/admin/features/${id}`);
+    return data;
+  },
+
+
+  /** Search users (for credit gift modal) */
+  async searchUsers(q: string): Promise<AdminUser[]> {
+    const { data } = await api.get<AdminUsersResponse>("/admin/users", { params: { search: q, limit: 5 } });
+    return data.users;
   },
 };

@@ -43,6 +43,7 @@ model User {
   emailVerified    DateTime?
   image            String?
   password         String?   // null for OAuth users, bcrypt hash for credentials users
+  role             String    @default("USER") // "USER" | "STAFF" | "ADMIN"
   credits          Int       @default(10)
   plan             String    @default("free") // "free", "starter", "pro", "max"
   planExpiresAt    DateTime?                  // Ngày hết hạn gói tháng (null = free)
@@ -56,6 +57,7 @@ model User {
   likes              Like[]
   creditTransactions CreditTransaction[]
 }
+
 
 // =============================================
 // JOB - Lịch sử gen ảnh
