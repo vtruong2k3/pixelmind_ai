@@ -98,7 +98,7 @@ function StatsInner() {
         <StatCard label="Jobs tháng này"     value={data?.overview.newJobsThisMonth ?? 0}    icon={Zap}         iconColor="#facc15" iconBg="rgba(250,204,21,0.1)"  delay={0.15} />
         <StatCard
           label="Tổng credits mua"
-          value={(data?.overview.totalRevenue ?? 0).toLocaleString("vi-VN")}
+          value={(data?.overview.totalRevenueUSD ?? 0).toLocaleString("vi-VN")}
           icon={DollarSign}
           iconColor="#34d399"
           iconBg="rgba(52,211,153,0.1)"
