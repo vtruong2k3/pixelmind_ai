@@ -162,7 +162,7 @@ export async function GET() {
       ...u,
       createdAt: u.createdAt.toISOString(),
     })),
-    recentPurchases: recentPurchases.map(tx => ({
+    recentPurchases: recentPurchases.map((tx: any) => ({
       id:          tx.id,
       plan:        parsePlanFromDesc(tx.description),
       credits:     tx.amount,
