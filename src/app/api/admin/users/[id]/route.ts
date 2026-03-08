@@ -35,6 +35,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const data: any = {};
   for (const k of allowed) { if (k in body) data[k] = body[k]; }
 
+  // Handle planExpiresAt: null = reset, ISO string = set date
+  if ("planExpiresAt" in body) {
+    data.planExpiresAt = body.planExpiresAt ? new Date(body.planExpiresAt) : null;
+  }
+
   // Không cho phép tự hạ role chính mình
   if (id === session!.user!.id && body.role && body.role !== "ADMIN") {
     return NextResponse.json({ error: "Không thể thay đổi role của chính mình" }, { status: 400 });

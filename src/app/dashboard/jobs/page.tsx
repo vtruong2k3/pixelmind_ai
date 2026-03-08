@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Search, Loader2, RefreshCw, Trash2, ChevronLeft, ChevronRight, Filter, Image as ImageIcon } from "lucide-react";
+import { Search, Loader2, RefreshCw, Trash2, ChevronLeft, ChevronRight, Filter, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { adminService } from "@/services/adminService";
 import { staffService } from "@/services/staffService";
 import { hasMinRole, type UserRole } from "@/lib/roles";
@@ -31,6 +34,8 @@ export default function DashboardJobsPage() {
   const isStaff = hasMinRole(role, "STAFF");
   const qc      = useQueryClient();
 
+  const [confirmDeleteJob, setConfirmDeleteJob] = useState<any>(null);
+
   // ── Zustand filter state (persist filter khi navigate giữa pages) ──
   const { jobsFilter, setJobsFilter } = useDashboardStore();
   const { status, quality, search, page } = jobsFilter;
@@ -52,8 +57,30 @@ export default function DashboardJobsPage() {
 
   const deleteMut = useMutation({
     mutationFn: (jobId: string) => adminService.deleteJob(jobId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-jobs"] }); toast.success("Đã xóa job"); },
-    onError: (e: any) => toast.error(e.message),
+
+    // Xóa khỏi cache NGAY LẬP TỨC (không chờ server)
+    onMutate: async (jobId: string) => {
+      const predicate = (q: any) => ["admin-jobs", "staff-jobs"].includes(q.queryKey[0]);
+      await qc.cancelQueries({ predicate });
+      qc.setQueriesData<any>({ predicate }, (old: any) => {
+        if (!old?.jobs) return old;
+        return { ...old, jobs: old.jobs.filter((j: any) => j.id !== jobId), total: (old.total ?? 1) - 1 };
+      });
+    },
+
+    onSuccess: () => {
+      // Sync lại từ server sau khi API hoàn thành
+      qc.invalidateQueries({ predicate: (q) => ["admin-jobs", "staff-jobs"].includes(q.queryKey[0] as string) });
+      toast.success("Đã xóa job");
+      setConfirmDeleteJob(null);
+    },
+
+    // Nếu API lỗi → rollback bằng cách fetch lại từ server
+    onError: (e: any) => {
+      qc.invalidateQueries({ predicate: (q) => ["admin-jobs", "staff-jobs"].includes(q.queryKey[0] as string) });
+      toast.error(e.message ?? "Xóa thất bại");
+      setConfirmDeleteJob(null);
+    },
   });
 
   const syncMut = useMutation({
@@ -198,7 +225,7 @@ export default function DashboardJobsPage() {
                       </td>
                       {isAdmin && (
                         <td className="px-4 py-3">
-                          <Button size="sm" variant="ghost" onClick={() => deleteMut.mutate(job.id)}
+                          <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteJob(job)}
                             className="h-7 px-2 text-red-500/60 hover:text-red-400 hover:bg-red-500/10">
                             <Trash2 size={11} />
                           </Button>
@@ -246,6 +273,40 @@ export default function DashboardJobsPage() {
           </div>
         </div>
       )}
+
+      {/* ── Confirm Delete Job Dialog ── */}
+      <Dialog open={!!confirmDeleteJob} onOpenChange={o => { if (!o) setConfirmDeleteJob(null); }}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-black flex items-center gap-2">
+              <AlertTriangle size={15} className="text-red-400" /> Xác nhận xóa Job
+            </DialogTitle>
+          </DialogHeader>
+          {confirmDeleteJob && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-xl space-y-1" style={{ background: "#0f0f11", border: "1px solid #1f1f23" }}>
+                <p className="text-xs font-semibold text-white">{confirmDeleteJob.featureName}</p>
+                <p className="text-[10px] font-mono" style={{ color: "#52525b" }}>ID: {confirmDeleteJob.id}</p>
+                <p className="text-[10px]" style={{ color: "#71717a" }}>User: {confirmDeleteJob.user?.email}</p>
+              </div>
+              <p className="text-xs" style={{ color: "#71717a" }}>
+                Hành động này sẽ xóa vĩnh viễn job này.{" "}
+                <span className="text-red-400 font-semibold">Không thể hoàn tác.</span>
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1 border-zinc-800 text-zinc-400 hover:text-white text-xs"
+                  onClick={() => setConfirmDeleteJob(null)}>Hủy</Button>
+                <Button className="flex-1 text-white font-bold text-xs bg-red-600 hover:bg-red-500"
+                  onClick={() => deleteMut.mutate(confirmDeleteJob.id)} disabled={deleteMut.isPending}>
+                  {deleteMut.isPending ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <Trash2 size={12} className="mr-1.5" />}
+                  Xóa vĩnh viễn
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

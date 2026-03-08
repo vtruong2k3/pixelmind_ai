@@ -7,16 +7,20 @@ import api from "./api";
 
 export interface AdminOverview {
   overview: {
-    totalUsers: number;
-    totalJobs: number;
+    totalUsers:        number;
+    totalJobs:         number;
     newUsersThisMonth: number;
-    newJobsThisMonth: number;
-    totalRevenue?: number;
+    newJobsThisMonth:  number;
+    totalRevenueUSD:   number;
+    monthRevenueUSD:   number;
+    todayRevenueUSD:   number;
   };
-  jobStatus: Record<string, number>;
-  planDistribution: { plan: string; count: number }[];
-  featureUsage: { slug: string; name: string; count: number }[];
-  chartDays: { date: string; label: string; users: number; jobs: number; credits: number }[];
+  jobStatus:         Record<string, number>;
+  planDistribution:  { plan: string; count: number }[];
+  featureUsage:      { slug: string; name: string; count: number }[];
+  chartDays:         { date: string; label: string; users: number; jobs: number; credits: number; revenue: number }[];
+  todayNewUsers:     { id: string; name: string | null; email: string; image: string | null; plan: string; createdAt: string }[];
+  recentPurchases:   { id: string; plan: string; credits: number; description: string; createdAt: string; user: { id: string; name: string | null; email: string; image: string | null; plan: string } }[];
 }
 
 export interface AdminUser {
@@ -122,7 +126,7 @@ export const adminService = {
     return data;
   },
 
-  async updateUser(id: string, payload: { role?: string; credits?: number; creditAmount?: number; creditDescription?: string; plan?: string }) {
+  async updateUser(id: string, payload: { role?: string; credits?: number; creditAmount?: number; creditDescription?: string; plan?: string; planExpiresAt?: string | null }) {
     const { data } = await api.patch(`/admin/users/${id}`, payload);
     return data;
   },

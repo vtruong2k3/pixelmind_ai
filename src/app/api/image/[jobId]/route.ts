@@ -37,7 +37,7 @@ export async function GET(
 
     const outputUrl = finalJob.outputUrl;
 
-    // Nếu là data:image URL (base64 cũ), stream thẳng
+    // 1) Nếu là Base64 cũ (ảnh lưu trữ trước đây)
     if (outputUrl.startsWith("data:image")) {
       const [header, b64] = outputUrl.split(",");
       const mimeMatch = header.match(/data:([^;]+)/);
@@ -51,25 +51,9 @@ export async function GET(
       });
     }
 
-    // Nếu là S3/HTTP URL — proxy fetch
-    const imageRes = await fetch(outputUrl, {
-      headers: { "User-Agent": "PixelMind/1.0" },
-    });
-
-    if (!imageRes.ok) {
-      return new NextResponse("Failed to fetch image", { status: 502 });
-    }
-
-    const contentType = imageRes.headers.get("content-type") ?? "image/png";
-    const buffer = await imageRes.arrayBuffer();
-
-    return new NextResponse(buffer, {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+    // 2) S3/HTTP URL: Redirect trực tiếp 
+    // S3 URL từ Chainhub là pre-signed public, client GET thẳng không lo bị block thay đổi Header từ Server
+    return NextResponse.redirect(outputUrl);
   } catch (error) {
     console.error("[/api/image] Error:", error);
     return new NextResponse("Internal error", { status: 500 });

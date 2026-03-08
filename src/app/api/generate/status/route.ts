@@ -16,13 +16,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "jobId required" }, { status: 400 });
     }
 
-    // Lấy job — dùng $queryRaw để tránh TypeScript type conflict
+    // Lấy job — KHÔNG select outputUrl ở dạng text để tránh kéo 10MB base64 nhiều lần
     const jobs = await prisma.$queryRaw<Array<{
-      id: string; status: string; outputUrl: string | null;
+      id: string; status: string;
+      hasOutputUrl: boolean;
       chainhubTaskId: string | null; errorMsg: string | null;
       userId: string; featureId: string;
     }>>`
-      SELECT id, status, "outputUrl", "chainhubTaskId", "errorMsg", "userId", "featureId"
+      SELECT id, status, CASE WHEN "outputUrl" IS NOT NULL THEN true ELSE false END AS "hasOutputUrl", "chainhubTaskId", "errorMsg", "userId", "featureId"
       FROM "Job"
       WHERE id = ${jobId} AND "userId" = ${session.user.id}
       LIMIT 1
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Đã xong từ lần poll trước
-    if (job.status === "COMPLETED" && job.outputUrl) {
+    if (job.status === "COMPLETED" && job.hasOutputUrl) {
       return NextResponse.json({ status: "COMPLETED", outputUrl: `/api/image/${job.id}` });
     }
     if (job.status === "FAILED") {
@@ -52,29 +53,39 @@ export async function GET(req: NextRequest) {
     }
 
     if (result.status === "COMPLETED" && result.outputUrl) {
-      let storedUrl = result.outputUrl;
-      try {
-        const imgRes = await fetch(result.outputUrl, {
-          headers: { "User-Agent": "PixelMind/1.0" },
-        });
-        if (imgRes.ok) {
-          const contentType = imgRes.headers.get("content-type") || "image/png";
-          const buffer = Buffer.from(await imgRes.arrayBuffer());
-          storedUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
-          console.log(`[status] Ảnh lưu base64 (${Math.round(buffer.byteLength / 1024)}KB) job=${job.id}`);
-        } else {
-          console.warn(`[status] Download thất bại (${imgRes.status})`);
-        }
-      } catch (downloadErr) {
-        console.warn("[status] Download error:", downloadErr);
-      }
+      const rawUrl = result.outputUrl;
 
-
+      // 1. Lập tức lưu đường dẫn gốc (nhẹ) vào CSDL để ảnh hiển thị trên Client tức thì
       await prisma.$executeRaw`
-        UPDATE "Job" SET status = 'COMPLETED', "outputUrl" = ${storedUrl}, "updatedAt" = NOW()
+        UPDATE "Job" SET status = 'COMPLETED', "outputUrl" = ${rawUrl}, "updatedAt" = NOW()
         WHERE id = ${job.id}
       `;
-      // Credits đã bị trừ từ lúc submit — không cần hành động gì thêm
+
+      // 2. Tải và convert sang Base64 ngầm vào DB (dùng sau này cho Gallery) 
+      // Tiến trình này chạy nền không làm kẹt luồng trả về
+      (async () => {
+        try {
+          const imgRes = await fetch(rawUrl, {
+            headers: { "User-Agent": "PixelMind/1.0" },
+          });
+          if (imgRes.ok) {
+            const contentType = imgRes.headers.get("content-type") || "image/png";
+            const buffer = Buffer.from(await imgRes.arrayBuffer());
+            const b64 = `data:${contentType};base64,${buffer.toString("base64")}`;
+
+            // Ghi đè Base64 thay S3 URL
+            await prisma.$executeRaw`
+              UPDATE "Job" SET "outputUrl" = ${b64}
+              WHERE id = ${job.id}
+            `;
+            console.log(`[status-bg] Ảnh lưu base64 thành công (${Math.round(buffer.byteLength / 1024)}KB) job=${job.id}`);
+          }
+        } catch (downloadErr) {
+          console.warn("[status-bg] Download error:", downloadErr);
+        }
+      })().catch(console.error);
+
+      // 3. Phản hồi lập tức
       return NextResponse.json({
         status: "COMPLETED",
         outputUrl: `/api/image/${job.id}`,
