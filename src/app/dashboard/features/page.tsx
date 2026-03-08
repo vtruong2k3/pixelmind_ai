@@ -111,10 +111,10 @@ function FeatureFormFields({ form, onChange }: { form: FeatureForm; onChange: (p
         value={form.prompt}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange({ prompt: e.target.value })}
         className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-md px-3 py-2 text-xs min-h-[80px] resize-none focus:outline-none focus:border-zinc-600"
-        placeholder="Prompt gửi lên AI để xử lý ảnh..."
+        placeholder="Prompt gửi lên AI để tạo ảnh/xử lý ảnh..."
       />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Danh mục</label>
           <Select value={form.category} onValueChange={v => onChange({ category: v })}>
@@ -127,21 +127,22 @@ function FeatureFormFields({ form, onChange }: { form: FeatureForm; onChange: (p
           </Select>
         </div>
         <div>
-          <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Số ảnh upload</label>
+          <label className="text-xs font-semibold mb-1.5 block text-zinc-400 truncate">Số ảnh upload</label>
           <Select value={String(form.imageCount)} onValueChange={v => onChange({ imageCount: Number(v) })}>
             <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white h-9"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-zinc-900 border-zinc-800">
+              <SelectItem value="0" className="text-zinc-300">0 ảnh</SelectItem>
               <SelectItem value="1" className="text-zinc-300">1 ảnh</SelectItem>
               <SelectItem value="2" className="text-zinc-300">2 ảnh</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div>
-          <label className="text-xs font-semibold mb-1.5 block text-zinc-400 flex items-center gap-1"><Zap size={10} className="text-yellow-400" />Credit cost</label>
+          <label className="text-xs font-semibold mb-1.5 block text-zinc-400 flex items-center gap-1 truncate"><Zap size={10} className="text-yellow-400" />Credit cost</label>
           <Input type="number" min={0} value={form.creditCost} onChange={e => onChange({ creditCost: Number(e.target.value) || 0 })} className="bg-zinc-900 border-zinc-800 text-white h-9" />
         </div>
       </div>
-      <div>
+      <div className="pt-2">
         <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Sort order <span style={{ color: "#52525b" }}>(nhỏ hơn = hiện trước)</span></label>
         <Input type="number" value={form.sortOrder} onChange={e => onChange({ sortOrder: Number(e.target.value) || 0 })} className="bg-zinc-900 border-zinc-800 text-white h-9" />
       </div>

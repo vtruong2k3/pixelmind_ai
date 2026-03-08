@@ -173,7 +173,9 @@ function StudioInner() {
   };
 
   const handleGenerate = async () => {
-    if (!image1) { toast.error("Vui lòng upload ảnh chính."); return; }
+    if (activeFeature.imageCount > 0 && !image1) { 
+      toast.error("Vui lòng upload ảnh chính."); return; 
+    }
     setLoading(true);
     setMobileView("result");
 
@@ -190,7 +192,8 @@ function StudioInner() {
       formData.append("width",       String(w));
       formData.append("height",      String(h));
       formData.append("isPublic",    String(isPublic));
-      formData.append("image",       image1.file);
+      
+      if (image1) formData.append("image", image1.file);
       if (image2) formData.append("image_2", image2.file);
 
       // Step 1: Submit — trả về jobId ngay trong <2 giây
@@ -389,12 +392,14 @@ function StudioInner() {
           {/* Body */}
           <div className="p-6 flex flex-col gap-6 pb-32">
             {/* Upload zones */}
-            <div className={`grid gap-4 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-              <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
-              {activeFeature.imageCount === 2 && (
-                <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
-              )}
-            </div>
+            {activeFeature.imageCount > 0 && (
+              <div className={`grid gap-4 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
+                {activeFeature.imageCount === 2 && (
+                  <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
+                )}
+              </div>
+            )}
 
             <PromptInput featureSlug={activeFeature.slug} value={prompt} onChange={setPrompt} />
 
@@ -460,7 +465,7 @@ function StudioInner() {
           <div className="sticky bottom-0 px-6 pb-6 pt-3" style={{ background: "linear-gradient(to top, #0a0a0a 70%, transparent)" }}>
             <button
               onClick={handleGenerate}
-              disabled={loading || !image1}
+              disabled={loading || (activeFeature.imageCount > 0 && !image1)}
               className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               style={{
                 background: loading ? "#1a1a1a" : "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)",
@@ -540,12 +545,14 @@ function StudioInner() {
         {mobileView === "form" && (
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 flex flex-col gap-5 pb-32">
-              <div className={`grid gap-3 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-                <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
-                {activeFeature.imageCount === 2 && (
-                  <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
-                )}
-              </div>
+              {activeFeature.imageCount > 0 && (
+                <div className={`grid gap-3 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
+                  {activeFeature.imageCount === 2 && (
+                    <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
+                  )}
+                </div>
+              )}
               <PromptInput featureSlug={activeFeature.slug} value={prompt} onChange={setPrompt} />
               {/* Quality */}
               <div>
@@ -598,7 +605,7 @@ function StudioInner() {
             <div className="sticky bottom-0 px-4 pb-4 pt-2" style={{ background: "linear-gradient(to top, #0a0a0a 70%, transparent)" }}>
               <button
                 onClick={handleGenerate}
-                disabled={loading || !image1}
+                disabled={loading || (activeFeature.imageCount > 0 && !image1)}
                 className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2"
                 style={{ background: loading ? "#1a1a1a" : "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)", boxShadow: "0 4px 24px rgba(124,58,237,0.3)" }}
               >
