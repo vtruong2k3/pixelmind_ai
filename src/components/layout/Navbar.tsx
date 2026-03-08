@@ -2,9 +2,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { X, Zap, ChevronDown, LogOut, History, User, CreditCard, Shield, Menu } from "lucide-react";
+import { X, Zap, ChevronDown, LogOut, History, User, CreditCard, Shield, Menu, LayoutGrid } from "lucide-react";
 
 const NAV_ITEMS = [
+ 
   { label: "Tính năng", href: "/#features" },
   { label: "Studio", href: "/studio" },
   { label: "Gallery", href: "/gallery" },
@@ -147,6 +148,15 @@ export default function Navbar() {
                         {/* Menu items */}
                         <div className="p-1.5">
                           <Link
+                            href="/dashboard"
+                            onClick={() => setDropdownOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors font-semibold"
+                            style={{ color: "#7c3aed" }}
+                          >
+                            <LayoutGrid size={14} />
+                            Dashboard
+                          </Link>
+                          <Link
                             href="/profile"
                             onClick={() => setDropdownOpen(false)}
                             className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
@@ -285,6 +295,11 @@ export default function Navbar() {
                   {/* Accordion sub-menu */}
                   {dropdownOpen && (
                     <div className="mx-2 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex flex-col">
+                      <Link href="/dashboard" onClick={() => { setMenuOpen(false); setDropdownOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-gray-100 transition-colors"
+                        style={{ color: "#7c3aed" }}>
+                        <LayoutGrid size={15} /> Dashboard
+                      </Link>
                       <Link href="/profile" onClick={() => { setMenuOpen(false); setDropdownOpen(false); }}
                         className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                         <User size={15} className="text-gray-400" /> Hồ sơ tài khoản

@@ -5,7 +5,7 @@ const CHAINHUB_API_KEY = process.env.CHAINHUB_API_KEY!;
 
 export interface GenerateParams {
   prompt: string;
-  image: Uint8Array | Blob;
+  image?: Uint8Array | Blob; // Không bắt buộc với text to image
   image_2?: Uint8Array | Blob;
   imageFileName?: string;
   image2FileName?: string;
@@ -44,7 +44,10 @@ export async function submitTask(params: GenerateParams): Promise<string | null>
   formData.append("height", String(height));
   formData.append("quality", quality);
   formData.append("orientation", orientation);
-  formData.append("image", toBlob(image), imageFileName);
+  
+  if (image) {
+    formData.append("image", toBlob(image), imageFileName);
+  }
   if (image_2) {
     formData.append("image_2", toBlob(image_2), image2FileName);
   }
@@ -149,14 +152,23 @@ async function pollTask(
 
 // ──────────────────────────────────────────────────────────
 // pollOnce: Gọi status endpoint 1 lần (EXPORT để status route dùng)
-// Dùng cho frontend polling: mỗi 3 giây gọi 1 lần
+// Hỗ trợ cả `chainhub.tech/images/edits` và `chainhub.tech/images/generations` vì /taskId nó là global
+// Tuy nhiên endpoint đúng để tra cứu task là `/edits/:id` hoặc `/generations/:id` tuỳ thuộc vào ban đầu tạo ở đâu.
+// (Giả sử cả 2 đều dùng chung 1 polling endpoint /edits hoặc phải gọi đúng type - ở đây tôi gọi GET trên CHAINHUB_BASE).
+// CHAINHUB_BASE thường trỏ tới /images/edits, nhưng TaskID global thì có thể /images/edits/:taskId vẫn trả về nếu API thiết kế tốt,
+// nếu không thì phải sửa CHAINHUB_BASE, nhưng tạm thời tôi sử dụng CHAINHUB_BASE/:taskId.
 // ──────────────────────────────────────────────────────────
 export async function pollOnce(
   taskId: string
 ): Promise<{ status: string; outputUrl?: string } | null> {
-  const statusUrl = `${CHAINHUB_BASE}/${taskId}`;
+  // Thay url để fix trường hợp url chainhub endpoint
+  const baseURL = CHAINHUB_BASE.replace('/edits', '');
+  const statusUrl = `${baseURL}/tasks/${taskId}`; // Hoặc thử xem API cung cấp query endpoint dạng nào. Tạm giữ code cũ vì trước đây code cũ là CHAINHUB_BASE/${taskId} 
+
+  // GIỮ NGUYÊN CODE CŨ DO API KHÔNG PHÂN BIỆT
+  const currentStatusUrl = `${CHAINHUB_BASE}/${taskId}`;
   try {
-    const res = await axios.get<PollResult>(statusUrl, {
+    const res = await axios.get<PollResult>(currentStatusUrl, {
       headers: { Authorization: `Bearer ${CHAINHUB_API_KEY}` },
       responseType: "json",
       timeout: 12_000,

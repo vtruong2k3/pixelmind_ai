@@ -14,7 +14,7 @@ export async function GET() {
     const [user, transactions, stats] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
-        select: { name: true, email: true, image: true, credits: true, plan: true, createdAt: true },
+        select: { name: true, email: true, image: true, credits: true, plan: true, planExpiresAt: true, createdAt: true },
       }),
       prisma.creditTransaction.findMany({
         where: { userId },
@@ -23,7 +23,7 @@ export async function GET() {
         select: { id: true, amount: true, type: true, description: true, createdAt: true },
       }),
       prisma.job.aggregate({
-        where: { userId, status: "done" },
+        where: { userId, status: "COMPLETED" },
         _count: { id: true },
         _sum: { creditUsed: true },
       }),

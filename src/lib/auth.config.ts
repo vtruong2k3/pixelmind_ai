@@ -9,35 +9,27 @@ import GoogleProvider from "next-auth/providers/google";
 export const authConfig: NextAuthConfig = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientId:     process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
-  pages: {
-    signIn: "/login",
-  },
+  pages: { signIn: "/login" },
   callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-      const pathname = nextUrl.pathname;
-
-      // Protect /studio, /history, /profile
-      const isProtected = ["/studio", "/history", "/profile"].some(
-        route => pathname === route || pathname.startsWith(route + "/")
-      );
-
-      if (isProtected && !isLoggedIn) {
-        // Redirect to /login with callbackUrl
-        const loginUrl = new URL("/login", nextUrl.origin);
-        loginUrl.searchParams.set("callbackUrl", pathname);
-        return Response.redirect(loginUrl);
+    // Propagate role vào JWT (edge-safe — chỉ đọc token, không query DB)
+    async jwt({ token, user }) {
+      if (user) {
+        token.id   = user.id;
+        token.role = (user as any).role ?? "USER";
       }
-
-      // Redirect logged-in users away from /login
-      if (pathname === "/login" && isLoggedIn) {
-        return Response.redirect(new URL("/studio", nextUrl.origin));
-      }
-
+      return token;
+    },
+    async session({ session, token }) {
+      (session.user as any).role = token.role ?? "USER";
+      if (token.id) session.user.id = token.id as string;
+      return session;
+    },
+    authorized() {
+      // Middleware.ts handles all route protection
       return true;
     },
   },

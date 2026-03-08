@@ -8,7 +8,7 @@ export const loginSchema = z.object({
     .email("Email không hợp lệ"),
   password: z
     .string()
-    .min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
+    .min(5, "Mật khẩu phải có ít nhất 5 ký tự"),
 });
 
 export const registerSchema = z.object({
@@ -22,7 +22,7 @@ export const registerSchema = z.object({
     .email("Email không hợp lệ"),
   password: z
     .string()
-    .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
+    .min(5, "Mật khẩu phải có ít nhất 5 ký tự")
     .max(100, "Mật khẩu quá dài"),
   confirmPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu"),
 }).refine((data) => data.password === data.confirmPassword, {

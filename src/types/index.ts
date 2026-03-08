@@ -1,4 +1,9 @@
 // =============================================
+// Role types
+// =============================================
+export type { UserRole } from "@/lib/roles";
+
+// =============================================
 // Feature types
 // =============================================
 export interface Feature {
@@ -20,7 +25,7 @@ export interface Feature {
 // =============================================
 // Job types
 // =============================================
-export type JobStatus = "pending" | "processing" | "done" | "failed";
+export type JobStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
 export type JobQuality = "sd" | "hd";
 export type JobOrientation = "portrait" | "landscape" | "square";
 
@@ -117,4 +122,27 @@ export interface UserProfile {
   image: string | null;
   credits: number;
   plan: string;
+}
+// =============================================
+// Dashboard types
+// =============================================
+export interface DashboardStats {
+  totalJobs: number;
+  totalCreditsUsed: number;
+  jobsThisMonth: number;
+  creditsThisMonth: number;
+}
+
+export interface FeatureUsage {
+  featureSlug: string;
+  featureName: string;
+  _count: number;
+}
+
+export interface DashboardData {
+  user: UserProfile & { planExpiresAt: string | null; createdAt: Date };
+  stats: DashboardStats;
+  usageByFeature: FeatureUsage[];
+  recentJobs: HistoryItem[];
+  recentTransactions: { id: string; amount: number; type: string; description: string; createdAt: Date }[];
 }

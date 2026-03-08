@@ -43,6 +43,7 @@ model User {
   emailVerified    DateTime?
   image            String?
   password         String?   // null for OAuth users, bcrypt hash for credentials users
+  role             String    @default("USER") // "USER" | "STAFF" | "ADMIN"
   credits          Int       @default(10)
   plan             String    @default("free") // "free", "starter", "pro", "max"
   planExpiresAt    DateTime?                  // Ngày hết hạn gói tháng (null = free)
@@ -56,6 +57,7 @@ model User {
   likes              Like[]
   creditTransactions CreditTransaction[]
 }
+
 
 // =============================================
 // JOB - Lịch sử gen ảnh
@@ -136,6 +138,7 @@ model CreditTransaction {
   amount      Int      // Số credits (dương = thêm vào, âm = trừ đi)
   type        String   // "earn" | "spend" | "purchase" | "bonus"
   description String   // Mô tả: "Đăng ký mới", "Tạo ảnh: Thay áo", "Mua 100 credits"
+  usdAmount   Float?   // Số tiền USD thực tế (chỉ có với type=purchase)
 
   jobId       String?  // Liên kết đến Job nếu là spend
   stripePaymentIntentId String? // Liên kết Stripe nếu là purchase

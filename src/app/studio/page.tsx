@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, Suspense } from "react";
+import { useStudioStore } from "@/store/studioStore";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -15,7 +17,22 @@ import { FIcon }       from "@/components/studio/icons";
 
 import { AI_FEATURES, CATEGORIES, FEATURE_PROMPTS, SIZE_PRESETS } from "@/lib/features";
 import type { AIFeature, UploadedFile, ResultItem, SizePreset, JobQuality, JobOrientation } from "@/types/ui";
-import { Zap, PanelLeftClose, PanelLeftOpen, ChevronRight } from "lucide-react";
+import { Zap, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+
+// ── Fetch active features từ DB — fallback sang static khi chưa load ────────
+async function fetchStudioFeatures(): Promise<AIFeature[]> {
+  const res = await fetch("/api/features");
+  if (!res.ok) throw new Error();
+  const data = await res.json();
+  return (data.features ?? []).map((f: any) => ({
+    slug:       f.slug,
+    name:       f.name,
+    desc:       f.description ?? "",
+    category:   f.category,
+    credits:    f.creditCost,
+    imageCount: f.imageCount,
+  } as AIFeature));
+}
 
 // ─────────────────────────────────────────────────────────────
 // Drag-to-resize hook
@@ -82,35 +99,51 @@ function StudioInner() {
   const searchParams = useSearchParams();
   const initialSlug  = searchParams?.get("feature") ?? AI_FEATURES[0].slug;
 
+  // ── Dynamic features từ DB (realtime khi admin thêm/sửa/xóa) ─────────────
+  const { data: dbFeatures } = useQuery({
+    queryKey: ["studio-features"],
+    queryFn:  fetchStudioFeatures,
+    staleTime: 60_000,
+  });
+  // Dùng DB features nếu có, fallback sang static khi loading
+  const allFeatures: AIFeature[] = dbFeatures && dbFeatures.length > 0 ? dbFeatures : AI_FEATURES;
+
+  // ── Zustand: persist prefs across navigation ────────────────
+  const {
+    activeFeatureSlug,    setActiveFeatureSlug,
+    activeCategory,       setActiveCategory,
+    quality,              setQuality,
+    orientation,          setOrientation,
+    selectedPresetIdx,    setSelectedPresetIdx,
+    isPublic,             setIsPublic,
+    featurePanelOpen,     setFeaturePanelOpen,
+  } = useStudioStore();
+
+  // Resolve feature object từ slug (ưu tiên ?feature= query, sau đó Zustand persisted slug)
+  const activeFeature: AIFeature =
+    allFeatures.find(f => f.slug === (searchParams?.get("feature") ?? activeFeatureSlug))
+    ?? allFeatures.find(f => f.slug === activeFeatureSlug)
+    ?? allFeatures[0]
+    ?? AI_FEATURES[0]; // final fallback
+
   // ── Panel state ────────────────────────────────────────────
-  const [featurePanelOpen, setFeaturePanelOpen] = useState(true);
   const [mobileView, setMobileView] = useState<"form" | "result">("form");
 
   // ── Drag resize ────────────────────────────────────────────
   const featurePanel = useDragResize(260, 180, 380, "right");
   const resultPanel  = useDragResize(340, 240, 520, "left");
 
-  // ── Active feature ─────────────────────────────────────────
-  const [activeFeature, setActiveFeature] = useState<AIFeature>(
-    () => AI_FEATURES.find(f => f.slug === initialSlug) ?? AI_FEATURES[0]
-  );
-  const [activeCategory, setActiveCategory] = useState<string>("all");
-
   // ── Uploads ────────────────────────────────────────────────
   const [image1, setImage1] = useState<UploadedFile | null>(null);
   const [image2, setImage2] = useState<UploadedFile | null>(null);
 
-  // ── Prompt ─────────────────────────────────────────────────
-  const [prompt, setPrompt] = useState<string>(FEATURE_PROMPTS[initialSlug] ?? "");
+  // ── Prompt (local — reset khi đổi feature) ─────────────────
+  const [prompt, setPrompt] = useState<string>(FEATURE_PROMPTS[activeFeature.slug] ?? "");
 
-  // ── Size / quality ─────────────────────────────────────────
-  const [selectedPresetIdx, setSelectedPresetIdx] = useState<number>(0);
-  const [isCustomSize, setIsCustomSize]           = useState<boolean>(false);
-  const [customW, setCustomW]                     = useState<number>(1024);
-  const [customH, setCustomH]                     = useState<number>(1536);
-  const [quality, setQuality]                     = useState<JobQuality>("sd");
-  const [orientation, setOrientation]             = useState<JobOrientation>("portrait");
-  const [isPublic, setIsPublic]                   = useState<boolean>(true);
+  // ── Custom size (local — không cần persist) ─────────────────
+  const [isCustomSize, setIsCustomSize] = useState<boolean>(false);
+  const [customW, setCustomW]           = useState<number>(1024);
+  const [customH, setCustomH]           = useState<number>(1536);
 
   // ── Results ────────────────────────────────────────────────
   const [results, setResults]   = useState<ResultItem[]>([]);
@@ -118,7 +151,7 @@ function StudioInner() {
 
   // ── Handlers ───────────────────────────────────────────────
   const switchFeature = (f: AIFeature) => {
-    setActiveFeature(f);
+    setActiveFeatureSlug(f.slug); // persist vào Zustand
     setImage1(null);
     setImage2(null);
     setPrompt(FEATURE_PROMPTS[f.slug] ?? "");
@@ -132,15 +165,17 @@ function StudioInner() {
 
   const selectPreset = (i: number) => {
     const preset: SizePreset = SIZE_PRESETS[i];
-    setSelectedPresetIdx(i);
+    setSelectedPresetIdx(i);  // persist vào Zustand
     setIsCustomSize(false);
     setCustomW(preset.w);
     setCustomH(preset.h);
-    setOrientation(preset.orientation);
+    setOrientation(preset.orientation); // persist vào Zustand
   };
 
   const handleGenerate = async () => {
-    if (!image1) { toast.error("Vui lòng upload ảnh chính."); return; }
+    if (activeFeature.imageCount > 0 && !image1) { 
+      toast.error("Vui lòng upload ảnh chính."); return; 
+    }
     setLoading(true);
     setMobileView("result");
 
@@ -157,7 +192,8 @@ function StudioInner() {
       formData.append("width",       String(w));
       formData.append("height",      String(h));
       formData.append("isPublic",    String(isPublic));
-      formData.append("image",       image1.file);
+      
+      if (image1) formData.append("image", image1.file);
       if (image2) formData.append("image_2", image2.file);
 
       // Step 1: Submit — trả về jobId ngay trong <2 giây
@@ -189,7 +225,7 @@ function StudioInner() {
       for (let i = 0; i < MAX_POLLS; i++) {
         await new Promise(r => setTimeout(r, 3000));
 
-        let statusData: { status: string; outputUrl?: string; error?: string } = { status: "processing" };
+        let statusData: { status: string; outputUrl?: string; error?: string } = { status: "PROCESSING" };
         try {
           const statusRes = await fetch(`/api/generate/status?jobId=${jobId}`);
           statusData = await statusRes.json();
@@ -200,7 +236,7 @@ function StudioInner() {
 
         console.log(`[poll ${i + 1}] status=${statusData.status} outputUrl=${statusData.outputUrl ?? "none"}`);
 
-        if (statusData.status === "done") {
+        if (statusData.status === "COMPLETED") {
           if (statusData.outputUrl) {
             setResults(prev => [{
               id:          jobId,
@@ -215,7 +251,7 @@ function StudioInner() {
             return;
           } else {
             doneNoUrlRetries++;
-            console.warn(`[poll ${i + 1}] status=done nhưng outputUrl rỗng (retry ${doneNoUrlRetries}/3)`);
+            console.warn(`[poll ${i + 1}] status=COMPLETED nhưng outputUrl rỗng (retry ${doneNoUrlRetries}/3)`);
             if (doneNoUrlRetries >= 3) {
               toast.error("Ảnh đã xong nhưng không thể tải. Vui lòng xem lại Lịch sử.");
               return;
@@ -224,7 +260,7 @@ function StudioInner() {
           }
         }
 
-        if (statusData.status === "failed") {
+        if (statusData.status === "FAILED") {
           toast.error(statusData.error ?? "Tạo ảnh thất bại.");
           // Hoàn credits lại trên UI ngay lập tức
           setLocalCredits(prev => prev + activeFeature.credits);
@@ -243,8 +279,8 @@ function StudioInner() {
   };
 
   const filteredFeatures = activeCategory === "all"
-    ? AI_FEATURES
-    : AI_FEATURES.filter(f => f.category === activeCategory);
+    ? allFeatures
+    : allFeatures.filter(f => f.category === activeCategory);
 
   const currentW = isCustomSize ? customW : (SIZE_PRESETS[selectedPresetIdx]?.w ?? 1024);
   const currentH = isCustomSize ? customH : (SIZE_PRESETS[selectedPresetIdx]?.h ?? 1536);
@@ -356,12 +392,14 @@ function StudioInner() {
           {/* Body */}
           <div className="p-6 flex flex-col gap-6 pb-32">
             {/* Upload zones */}
-            <div className={`grid gap-4 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-              <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
-              {activeFeature.imageCount === 2 && (
-                <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
-              )}
-            </div>
+            {activeFeature.imageCount > 0 && (
+              <div className={`grid gap-4 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
+                {activeFeature.imageCount === 2 && (
+                  <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
+                )}
+              </div>
+            )}
 
             <PromptInput featureSlug={activeFeature.slug} value={prompt} onChange={setPrompt} />
 
@@ -407,7 +445,7 @@ function StudioInner() {
               </div>
               <button
                 type="button"
-                onClick={() => setIsPublic(p => !p)}
+                onClick={() => setIsPublic(!isPublic)}
                 className="relative inline-flex items-center rounded-full transition-all"
                 style={{ width: "44px", height: "24px", background: isPublic ? "#a78bfa" : "#2a2a2a" }}
               >
@@ -427,7 +465,7 @@ function StudioInner() {
           <div className="sticky bottom-0 px-6 pb-6 pt-3" style={{ background: "linear-gradient(to top, #0a0a0a 70%, transparent)" }}>
             <button
               onClick={handleGenerate}
-              disabled={loading || !image1}
+              disabled={loading || (activeFeature.imageCount > 0 && !image1)}
               className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               style={{
                 background: loading ? "#1a1a1a" : "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)",
@@ -507,12 +545,14 @@ function StudioInner() {
         {mobileView === "form" && (
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 flex flex-col gap-5 pb-32">
-              <div className={`grid gap-3 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-                <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
-                {activeFeature.imageCount === 2 && (
-                  <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
-                )}
-              </div>
+              {activeFeature.imageCount > 0 && (
+                <div className={`grid gap-3 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
+                  {activeFeature.imageCount === 2 && (
+                    <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
+                  )}
+                </div>
+              )}
               <PromptInput featureSlug={activeFeature.slug} value={prompt} onChange={setPrompt} />
               {/* Quality */}
               <div>
@@ -552,7 +592,7 @@ function StudioInner() {
                   <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>Ảnh xuất hiện trong Gallery</p>
                 </div>
                 <button
-                  onClick={() => setIsPublic(p => !p)}
+                  onClick={() => setIsPublic(!isPublic)}
                   className="relative rounded-full transition-colors shrink-0 overflow-hidden"
                   style={{ width: "44px", height: "24px", background: isPublic ? "#a78bfa" : "#2a2a2a" }}
                 >
@@ -565,7 +605,7 @@ function StudioInner() {
             <div className="sticky bottom-0 px-4 pb-4 pt-2" style={{ background: "linear-gradient(to top, #0a0a0a 70%, transparent)" }}>
               <button
                 onClick={handleGenerate}
-                disabled={loading || !image1}
+                disabled={loading || (activeFeature.imageCount > 0 && !image1)}
                 className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2"
                 style={{ background: loading ? "#1a1a1a" : "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)", boxShadow: "0 4px 24px rgba(124,58,237,0.3)" }}
               >

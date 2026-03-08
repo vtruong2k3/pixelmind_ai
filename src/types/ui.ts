@@ -35,7 +35,7 @@ export interface AIFeature {
   desc: string;
   category: "fashion" | "creative" | "photo_edit";
   credits: number;
-  imageCount: 1 | 2;
+  imageCount: 0 | 1 | 2;
 }
 
 /** Category để lọc tính năng */

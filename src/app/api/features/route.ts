@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/features - Lấy danh sách tất cả tính năng AI từ DB
 export async function GET() {
   try {

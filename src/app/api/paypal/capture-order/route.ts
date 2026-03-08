@@ -126,15 +126,16 @@ export async function POST(req: NextRequest) {
           credits: { increment: creditsToAdd },
           plan: planId,
           planExpiresAt: newExpiresAt,
-        } as any, // planExpiresAt mới thêm, cần as any cho đến khi restart server
+        } as any,
       }),
       prisma.creditTransaction.create({
         data: {
           userId,
-          amount: creditsToAdd,
-          type: "purchase",
+          amount:      creditsToAdd,
+          type:        "purchase",
           description: `Đăng ký gói ${plan.planKey}: +${creditsToAdd} credits (PayPal ${orderId})`,
-        },
+          usdAmount:   parseFloat(plan.amountUSD),
+        } as any,
       }),
     ]);
 

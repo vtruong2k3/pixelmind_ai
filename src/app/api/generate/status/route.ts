@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pollOnce } from "@/lib/chainhub";
+import { hasMinRole } from "@/lib/roles";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,13 +16,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "jobId required" }, { status: 400 });
     }
 
-    // Lấy job — dùng $queryRaw để tránh TypeScript type conflict
+    // Lấy job — KHÔNG select outputUrl ở dạng text để tránh kéo 10MB base64 nhiều lần
     const jobs = await prisma.$queryRaw<Array<{
-      id: string; status: string; outputUrl: string | null;
+      id: string; status: string;
+      hasOutputUrl: boolean;
       chainhubTaskId: string | null; errorMsg: string | null;
       userId: string; featureId: string;
     }>>`
-      SELECT id, status, "outputUrl", "chainhubTaskId", "errorMsg", "userId", "featureId"
+      SELECT id, status, CASE WHEN "outputUrl" IS NOT NULL THEN true ELSE false END AS "hasOutputUrl", "chainhubTaskId", "errorMsg", "userId", "featureId"
       FROM "Job"
       WHERE id = ${jobId} AND "userId" = ${session.user.id}
       LIMIT 1
@@ -33,56 +35,67 @@ export async function GET(req: NextRequest) {
     }
 
     // Đã xong từ lần poll trước
-    if (job.status === "done" && job.outputUrl) {
-      return NextResponse.json({ status: "done", outputUrl: `/api/image/${job.id}` });
+    if (job.status === "COMPLETED" && job.hasOutputUrl) {
+      return NextResponse.json({ status: "COMPLETED", outputUrl: `/api/image/${job.id}` });
     }
-    if (job.status === "failed") {
-      return NextResponse.json({ status: "failed", error: job.errorMsg ?? "Tạo ảnh thất bại" });
+    if (job.status === "FAILED") {
+      return NextResponse.json({ status: "FAILED", error: job.errorMsg ?? "Tạo ảnh thất bại" });
     }
 
     if (!job.chainhubTaskId) {
-      return NextResponse.json({ status: "processing" });
+      return NextResponse.json({ status: "PROCESSING" });
     }
 
     // Poll ChainHub 1 lần
     const result = await pollOnce(job.chainhubTaskId);
     if (!result) {
-      return NextResponse.json({ status: "processing" });
+      return NextResponse.json({ status: "PROCESSING" });
     }
 
     if (result.status === "COMPLETED" && result.outputUrl) {
-      let storedUrl = result.outputUrl;
-      try {
-        const imgRes = await fetch(result.outputUrl, {
-          headers: { "User-Agent": "PixelMind/1.0" },
-        });
-        if (imgRes.ok) {
-          const contentType = imgRes.headers.get("content-type") || "image/png";
-          const buffer = Buffer.from(await imgRes.arrayBuffer());
-          storedUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
-          console.log(`[status] Ảnh lưu base64 (${Math.round(buffer.byteLength / 1024)}KB) job=${job.id}`);
-        } else {
-          console.warn(`[status] Download thất bại (${imgRes.status})`);
-        }
-      } catch (downloadErr) {
-        console.warn("[status] Download error:", downloadErr);
-      }
+      const rawUrl = result.outputUrl;
 
-
+      // 1. Lập tức lưu đường dẫn gốc (nhẹ) vào CSDL để ảnh hiển thị trên Client tức thì
       await prisma.$executeRaw`
-        UPDATE "Job" SET status = 'done', "outputUrl" = ${storedUrl}, "updatedAt" = NOW()
+        UPDATE "Job" SET status = 'COMPLETED', "outputUrl" = ${rawUrl}, "updatedAt" = NOW()
         WHERE id = ${job.id}
       `;
-      // Credits đã bị trừ từ lúc submit — không cần hành động gì thêm
+
+      // 2. Tải và convert sang Base64 ngầm vào DB (dùng sau này cho Gallery) 
+      // Tiến trình này chạy nền không làm kẹt luồng trả về
+      (async () => {
+        try {
+          const imgRes = await fetch(rawUrl, {
+            headers: { "User-Agent": "PixelMind/1.0" },
+          });
+          if (imgRes.ok) {
+            const contentType = imgRes.headers.get("content-type") || "image/png";
+            const buffer = Buffer.from(await imgRes.arrayBuffer());
+            const b64 = `data:${contentType};base64,${buffer.toString("base64")}`;
+
+            // Ghi đè Base64 thay S3 URL
+            await prisma.$executeRaw`
+              UPDATE "Job" SET "outputUrl" = ${b64}
+              WHERE id = ${job.id}
+            `;
+            console.log(`[status-bg] Ảnh lưu base64 thành công (${Math.round(buffer.byteLength / 1024)}KB) job=${job.id}`);
+          }
+        } catch (downloadErr) {
+          console.warn("[status-bg] Download error:", downloadErr);
+        }
+      })().catch(console.error);
+
+      // 3. Phản hồi lập tức
       return NextResponse.json({
-        status: "done",
+        status: "COMPLETED",
         outputUrl: `/api/image/${job.id}`,
       });
     }
 
     if (result.status === "FAILED") {
-      // Hoàn credits lại cho user
-      const isAdmin = (session.user as any).isAdmin === true;
+      // Hoàn credits lại cho user (STAFF/ADMIN bypass credit)
+      const role = (session.user as any).role ?? "USER";
+      const isAdmin = hasMinRole(role, "STAFF");
       if (!isAdmin) {
         const features = await prisma.$queryRaw<Array<{ creditCost: number; name: string }>>`
           SELECT f."creditCost", f.name FROM "Feature" f
@@ -108,13 +121,23 @@ export async function GET(req: NextRequest) {
         }
       }
       await prisma.$executeRaw`
-        UPDATE "Job" SET status = 'failed', "errorMsg" = 'ChainHub task failed', "updatedAt" = NOW()
+        UPDATE "Job" SET status = 'FAILED', "errorMsg" = 'ChainHub task failed', "updatedAt" = NOW()
         WHERE id = ${job.id}
       `;
-      return NextResponse.json({ status: "failed", error: "Tạo ảnh thất bại. Credits đã được hoàn lại." });
+      return NextResponse.json({ status: "FAILED", error: "Tạo ảnh thất bại. Credits đã được hoàn lại." });
     }
 
-    return NextResponse.json({ status: result.status ?? "processing" });
+    // ChainHub đang QUEUED hoặc PROCESSING — đồng bộ status vào DB nếu khác
+    const chainhubStatus = result.status ?? "PROCESSING";
+    // Cập nhật DB nếu status khác với trong DB (QUEUED ≠ PROCESSING)
+    if (chainhubStatus !== job.status && (chainhubStatus === "QUEUED" || chainhubStatus === "PROCESSING")) {
+      await prisma.$executeRaw`
+        UPDATE "Job" SET status = ${chainhubStatus}, "updatedAt" = NOW()
+        WHERE id = ${job.id}
+      `;
+    }
+    return NextResponse.json({ status: chainhubStatus });
+
   } catch (error) {
     console.error("[/api/generate/status] Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
