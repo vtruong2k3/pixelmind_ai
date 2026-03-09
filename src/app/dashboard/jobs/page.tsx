@@ -35,6 +35,7 @@ export default function DashboardJobsPage() {
   const qc      = useQueryClient();
 
   const [confirmDeleteJob, setConfirmDeleteJob] = useState<any>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // ── Zustand filter state (persist filter khi navigate giữa pages) ──
   const { jobsFilter, setJobsFilter } = useDashboardStore();
@@ -186,7 +187,11 @@ export default function DashboardJobsPage() {
                     <tr key={job.id} style={{ background: i % 2 === 0 ? "#0c0c0e" : "#0f0f11", borderBottom: "1px solid #1f1f23" }}
                       className="hover:bg-zinc-900/50 transition-colors">
                       <td className="px-4 py-3">
-                        <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0" style={{ background: "#27272a" }}>
+                        <div 
+                          className={`w-9 h-9 rounded-lg overflow-hidden shrink-0 ${job.outputUrl ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
+                          style={{ background: "#27272a" }}
+                          onClick={() => job.outputUrl && setPreviewImage(job.outputUrl)}
+                        >
                           {job.outputUrl
                             ? <img src={job.outputUrl} alt="" className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center"><ImageIcon size={14} style={{ color: "#52525b" }} /></div>}
@@ -303,6 +308,17 @@ export default function DashboardJobsPage() {
                 </Button>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Preview Image Dialog ── */}
+      <Dialog open={!!previewImage} onOpenChange={o => { if (!o) setPreviewImage(null); }}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden bg-zinc-950 border-zinc-800 flex justify-center items-center">
+          <DialogTitle className="sr-only">Xem ảnh</DialogTitle>
+          {previewImage && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain" />
           )}
         </DialogContent>
       </Dialog>

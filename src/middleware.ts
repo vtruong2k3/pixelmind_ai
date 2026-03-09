@@ -69,7 +69,7 @@ export default auth(function middleware(req) {
   }
 
   // ── PROTECTED USER ROUTES ────────────────────────────────────────
-  const protectedRoutes = ["/studio", "/history", "/profile"];
+  const protectedRoutes = ["/history", "/profile"];
   if (protectedRoutes.some(r => pathname === r || pathname.startsWith(r + "/"))) {
     if (!isLoggedIn) {
       const url = new URL("/login", nextUrl.origin);

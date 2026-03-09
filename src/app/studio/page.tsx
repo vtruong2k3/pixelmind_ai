@@ -173,6 +173,12 @@ function StudioInner() {
   };
 
   const handleGenerate = async () => {
+    if (!session?.user) {
+      toast.error("Vui lòng đăng nhập để tạo ảnh.");
+      setTimeout(() => { window.location.href = `/login?callbackUrl=/studio?feature=${activeFeature.slug}`; }, 1500);
+      return;
+    }
+
     if (activeFeature.imageCount > 0 && !image1) { 
       toast.error("Vui lòng upload ảnh chính."); return; 
     }
