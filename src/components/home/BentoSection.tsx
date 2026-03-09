@@ -8,14 +8,17 @@ interface BentoSectionProps {
 
 export default function BentoSection({ cards }: BentoSectionProps) {
   const featured = cards.filter((c: NewsCard) => c.featured);
-  const stacked  = cards.filter((c: NewsCard) => !c.featured);
+  const stacked = cards.filter((c: NewsCard) => !c.featured);
 
   return (
     <section className="max-w-[1400px] mx-auto px-6 py-24" id="news">
       <div className="flex items-end justify-between mb-10">
         <div>
           <p className="mono text-xs text-gray-400 uppercase tracking-widest mb-3">Điểm nổi bật</p>
-          <h2 className="text-5xl font-bold tracking-tight text-gray-900" style={{ letterSpacing: "-0.03em" }}>
+          <h2 
+            className="text-6xl md:text-[5.5rem] leading-[1.05] text-gray-950 font-medium tracking-tighter" 
+            style={{ letterSpacing: "-0.05em" }}
+          >
             Công nghệ AI<br />đỉnh cao
           </h2>
         </div>
@@ -36,9 +39,9 @@ export default function BentoSection({ cards }: BentoSectionProps) {
             key={i}
             href={card.slug ? `/blog/${card.slug}` : "/blog"}
             className="block rounded-3xl overflow-hidden relative cursor-pointer group"
-            style={{ 
-              minHeight: "480px", 
-              background: card.coverImage ? `url(${card.coverImage}) center/cover no-repeat` : card.gradient 
+            style={{
+              minHeight: "480px",
+              background: card.coverImage ? `url(${card.coverImage}) center/cover no-repeat` : card.gradient
             }}
           >
             <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
@@ -61,9 +64,9 @@ export default function BentoSection({ cards }: BentoSectionProps) {
               key={i}
               href={card.slug ? `/blog/${card.slug}` : "/blog"}
               className="block rounded-3xl overflow-hidden relative cursor-pointer group flex-1"
-              style={{ 
-                minHeight: "225px", 
-                background: card.coverImage ? `url(${card.coverImage}) center/cover no-repeat` : card.gradient 
+              style={{
+                minHeight: "225px",
+                background: card.coverImage ? `url(${card.coverImage}) center/cover no-repeat` : card.gradient
               }}
             >
               <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />

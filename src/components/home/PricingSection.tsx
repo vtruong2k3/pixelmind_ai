@@ -77,8 +77,8 @@ export default function PricingSection() {
         <div className="text-center mb-12">
           <p className="mono text-xs text-gray-400 uppercase tracking-widest mb-3">Ưu đãi & Nâng cấp</p>
           <h2
-            className="font-black text-gray-900"
-            style={{ fontSize: "clamp(28px,5vw,50px)", letterSpacing: "-0.04em", lineHeight: 1.1 }}
+            className="font-medium text-gray-950 tracking-tighter"
+            style={{ fontSize: "clamp(48px, 6vw, 84px)", letterSpacing: "-0.05em", lineHeight: 1.05 }}
           >
             Ưu đãi{" "}
             <span style={{

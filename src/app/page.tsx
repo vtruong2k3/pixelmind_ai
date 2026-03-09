@@ -91,7 +91,7 @@ export default async function HomePage() {
 
   return (
     <div className="bg-white">
-      <Navbar />
+      <Navbar transparent={true} />
 
       {/* Section 1 — Hero */}
       <HeroSection />
@@ -113,27 +113,22 @@ export default async function HomePage() {
 
       {/* Section 7 — Final CTA (dark) */}
       <section
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(160deg, #050c08 0%, #0a1208 40%, #060808 100%)" }}
+        className="relative overflow-hidden bg-center bg-cover bg-no-repeat"
+        style={{ backgroundImage: "url('/bg-footer.avif')" }}
       >
-        <div
-          className="absolute blur-3xl opacity-20 rounded-full pointer-events-none"
-          style={{
-            width: "60%", height: "100%",
-            background: "radial-gradient(ellipse, #b4a7d6 0%, transparent 70%)",
-            top: "0", right: "-20%",
-          }}
-        />
+        {/* Dark overlay for readability */}
+        <div className="absolute inset-0 bg-black/50 pointer-events-none" />
+
         <div className="max-w-[1400px] mx-auto px-6 py-32 flex flex-col lg:flex-row items-center justify-between gap-12 relative z-10">
           <div>
-            <p className="mono text-xs text-white/30 uppercase tracking-widest mb-4">Bắt đầu ngay hôm nay</p>
+            <p className="mono text-xs text-white/50 uppercase tracking-widest mb-4">Bắt đầu ngay hôm nay</p>
             <h2
-              className="font-bold text-white leading-none"
-              style={{ fontSize: "clamp(40px, 6vw, 72px)", letterSpacing: "-0.04em" }}
+              className="font-medium text-white leading-[1.05] tracking-tighter"
+              style={{ fontSize: "clamp(48px, 6vw, 84px)", letterSpacing: "-0.05em" }}
             >
               Tạo ảnh AI<br />miễn phí
             </h2>
-            <p className="text-white/40 mt-4 max-w-md leading-relaxed">
+            <p className="text-white/80 mt-4 max-w-md leading-relaxed font-medium">
               10 credits miễn phí khi đăng ký. Không cần thẻ tín dụng.
             </p>
           </div>

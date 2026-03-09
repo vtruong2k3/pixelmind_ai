@@ -27,8 +27,8 @@ export default function BuiltToFitSection({ cards }: BuiltToFitSectionProps) {
           {/* Left — large text (sticky on desktop) */}
           <div className="lg:sticky lg:top-32">
             <h2
-              className="font-bold text-white leading-none mb-6"
-              style={{ fontSize: "clamp(40px, 6vw, 72px)", letterSpacing: "-0.04em" }}
+              className="font-medium text-white leading-[1.05] tracking-tighter mb-6"
+              style={{ fontSize: "clamp(48px, 6vw, 84px)", letterSpacing: "-0.05em" }}
             >
               Được tạo ra để phù hợp.<br />
               Sẵn sàng để sử dụng.

@@ -69,7 +69,7 @@ export default function BlogPagination({ page, totalPages, onPageChange }: BlogP
             }`}
             style={
               p === page
-                ? { background: "linear-gradient(135deg,#dc2626 0%,#7c3aed 100%)" }
+                ? { background: "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)", boxShadow: "0 4px 24px rgba(124,58,237,0.3)" }
                 : {}
             }
             aria-current={p === page ? "page" : undefined}

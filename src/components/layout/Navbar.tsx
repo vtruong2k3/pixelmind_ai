@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { X, Zap, ChevronDown, LogOut, History, User, CreditCard, Shield, Menu, LayoutGrid } from "lucide-react";
 
@@ -14,20 +14,53 @@ const NAV_ITEMS = [
   
 ];
 
-export default function Navbar() {
+interface NavbarProps {
+  transparent?: boolean;
+}
+
+export default function Navbar({ transparent = false }: NavbarProps) {
   const [announceDismissed, setAnnounceDismissed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const { data: session } = useSession();
+
+  useEffect(() => {
+    if (localStorage.getItem('pixelmind_announce_dismissed') === 'true') {
+      setAnnounceDismissed(true);
+    }
+  }, []);
+
+  const handleDismiss = () => {
+    localStorage.setItem('pixelmind_announce_dismissed', 'true');
+    setAnnounceDismissed(true);
+  };
 
   const user = session?.user as any;
   const credits: number = user?.credits ?? 0;
+
+  useEffect(() => {
+    if (!transparent) return;
+    
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [transparent]);
+
+  const isTransparent = transparent && !isScrolled;
+
+  const headerBgClass = isTransparent 
+    ? "fixed top-0 left-0 right-0 bg-transparent border-b border-transparent text-white" 
+    : "sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-100 text-gray-900";
 
   return (
     <>
       {/* ── Announcement Bar ── */}
       {!announceDismissed && (
-        <div className="bg-black text-white text-sm text-center py-2.5 px-6 flex items-center justify-center gap-3 relative">
+        <div className="bg-black text-white text-sm text-center py-2.5 px-6 flex items-center justify-center gap-3 relative z-[60]">
           <span>
             ✦ PixelMind AI — 10 công cụ AI biến ảnh của bạn thành tuyệt tác&nbsp;·&nbsp;
             <Link href="/studio" className="underline underline-offset-2 hover:text-white/80 transition-colors">
@@ -35,7 +68,7 @@ export default function Navbar() {
             </Link>
           </span>
           <button
-            onClick={() => setAnnounceDismissed(true)}
+            onClick={handleDismiss}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors"
             aria-label="Đóng"
           >
@@ -45,18 +78,18 @@ export default function Navbar() {
       )}
 
       {/* ── Navbar ── */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
+      <header className={`z-50 transition-colors duration-300 ${headerBgClass}`}>
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 font-bold text-[15px] tracking-tight text-gray-900 hover:opacity-80 transition-opacity">
+          <Link href="/" className={`flex items-center gap-2.5 font-bold text-[15px] tracking-tight hover:opacity-80 transition-opacity ${isTransparent ? "text-white" : "text-gray-900"}`}>
             <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="34" height="34" rx="7" fill="#7c3aed"/>
-              <path d="M7 25L13 9L19 21L23 15L27 25H7Z" fill="white" strokeLinejoin="round"/>
-              <circle cx="23" cy="11" r="2.5" fill="white" opacity="0.85"/>
+              <rect width="34" height="34" rx="7" fill={isTransparent ? "#ffffff" : "#7c3aed"} fillOpacity={isTransparent ? 0.2 : 1}/>
+              <path d="M7 25L13 9L19 21L23 15L27 25H7Z" fill={isTransparent ? "#ffffff" : "white"} strokeLinejoin="round"/>
+              <circle cx="23" cy="11" r="2.5" fill={isTransparent ? "#ffffff" : "white"} opacity="0.85"/>
             </svg>
             <div className="leading-tight">
               <div>PixelMind</div>
-              <div className="text-[10px] font-normal text-gray-400 tracking-wider uppercase">AI Studio</div>
+              <div className={`text-[10px] font-normal tracking-wider uppercase ${isTransparent ? "text-white/60" : "text-gray-400"}`}>AI Studio</div>
             </div>
           </Link>
 
@@ -66,7 +99,11 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-all font-medium"
+                className={`px-4 py-2 text-sm rounded-md transition-all font-medium ${
+                  isTransparent 
+                    ? "text-white/80 hover:text-white hover:bg-white/10" 
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                }`}
               >
                 {item.label}
               </Link>
@@ -75,11 +112,14 @@ export default function Navbar() {
 
           {/* Hamburger — mobile only */}
           <button
-            className="md:hidden p-2 rounded-lg hover:bg-gray-50 transition-colors"
+            className={`md:hidden p-2 rounded-lg transition-colors ${isTransparent ? "hover:bg-white/10" : "hover:bg-gray-50"}`}
             onClick={() => setMenuOpen(o => !o)}
             aria-label="Menu"
           >
-            {menuOpen ? <X size={20} className="text-gray-700" /> : <Menu size={20} className="text-gray-700" />}
+            {menuOpen 
+              ? <X size={20} className={isTransparent ? "text-white" : "text-gray-700"} /> 
+              : <Menu size={20} className={isTransparent ? "text-white" : "text-gray-700"} />
+            }
           </button>
 
           {/* Right — Auth State (desktop) */}
@@ -211,17 +251,17 @@ export default function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="hidden sm:block text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium"
+                  className={`hidden sm:block text-sm transition-colors font-medium ${isTransparent ? "text-white/80 hover:text-white" : "text-gray-500 hover:text-gray-900"}`}
                 >
                   Đăng nhập
                 </Link>
                 <Link
                   href="/login?callbackUrl=/studio"
-                  className="px-4 py-2 text-sm font-bold rounded-lg text-white transition-all hover:opacity-90 hover:-translate-y-0.5"
-                  style={{
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all hover:opacity-90 hover:-translate-y-0.5 ${isTransparent ? "text-black bg-white/90" : "text-white"}`}
+                  style={!isTransparent ? {
                     background: "var(--cta-gradient)",
                     boxShadow: "0 2px 10px rgba(124,58,237,0.35)",
-                  }}
+                  } : {}}
                 >
                   Dùng ngay
                 </Link>

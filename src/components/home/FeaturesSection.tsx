@@ -12,7 +12,10 @@ export default function FeaturesSection({ features }: FeaturesSectionProps) {
     <section className="max-w-[1400px] mx-auto px-6 pb-24" id="features">
       {/* Header */}
       <div className="flex items-end justify-between pb-8 border-b border-gray-100 mb-8">
-        <h2 className="text-5xl font-bold tracking-tight text-gray-900" style={{ letterSpacing: "-0.03em" }}>
+        <h2 
+          className="text-6xl md:text-[5.5rem] leading-[1.05] text-gray-950 font-medium tracking-tighter" 
+          style={{ letterSpacing: "-0.05em" }}
+        >
           10 tính năng AI
         </h2>
         <div className="flex gap-6">

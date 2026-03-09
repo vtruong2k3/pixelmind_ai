@@ -41,7 +41,10 @@ export default function GalleryStrip({ items }: GalleryStripProps) {
       <div className="max-w-[1400px] mx-auto px-6 mb-8">
         <p className="mono text-xs text-gray-400 uppercase tracking-widest mb-3">Cộng đồng</p>
         <div className="flex items-end justify-between">
-          <h2 className="text-4xl font-bold tracking-tight text-gray-900" style={{ letterSpacing: "-0.03em" }}>
+          <h2 
+            className="text-5xl md:text-6xl text-gray-950 font-medium tracking-tighter" 
+            style={{ letterSpacing: "-0.05em" }}
+          >
             Tác phẩm từ người dùng
           </h2>
           <Link
