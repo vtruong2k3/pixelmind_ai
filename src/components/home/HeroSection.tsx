@@ -1,5 +1,9 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Zap } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { AIFeature } from "@/types/ui";
 import { FIcon } from "@/components/studio/icons";
 
@@ -7,28 +11,49 @@ interface HeroSectionProps {
   topFeatures?: AIFeature[];
 }
 
+// 3 ảnh mockup (dùng placeholder chất lượng cao từ Unsplash hoặc bạn có thể thay đường dẫn local vào đây)
+const SLIDE_IMAGES = [
+  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop", // Abstract dark ai concept
+  "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=2574&auto=format&fit=crop", // Cyber neon
+  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2670&auto=format&fit=crop", // Future tech
+];
+
 export default function HeroSection({ topFeatures = [] }: HeroSectionProps) {
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % SLIDE_IMAGES.length);
+    }, 5000); // Đổi ảnh mỗi 5 giây
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <section className="px-4 pt-4 pb-0">
       <div
-        className="relative w-full overflow-hidden hero-glow"
+        className="relative w-full overflow-hidden hero-glow bg-zinc-950"
         style={{
           borderRadius: "var(--radius-card)",
           minHeight: "420px",
           height: "calc(100svh - 100px)",
           maxHeight: "840px",
-          background: "linear-gradient(160deg, #060c18 0%, #0a1a14 30%, #1a0e06 55%, #0c0808 80%, #050810 100%)",
         }}
       >
-        {/* Background gradient orbs */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <div className="absolute rounded-full blur-3xl opacity-70"
-            style={{ width: "70%", height: "60%", background: "radial-gradient(ellipse, #c04010 0%, #801a04 50%, transparent 80%)", top: "5%", left: "15%" }} />
-          <div className="absolute rounded-full blur-2xl opacity-80"
-            style={{ width: "100%", height: "45%", background: "linear-gradient(to top, #000 0%, #0a1a08 60%, transparent 100%)", bottom: 0, left: 0 }} />
-          <div className="absolute rounded-full blur-3xl opacity-40"
-            style={{ width: "40%", height: "50%", background: "radial-gradient(ellipse, #0a3020 0%, transparent 70%)", top: 0, left: 0 }} />
-        </div>
+        {/* Slidershow Backgrounds */}
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+            className="absolute inset-0 z-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${SLIDE_IMAGES[currentSlide]})` }}
+          />
+        </AnimatePresence>
+
+        {/* Overlay gradient to keep text readable */}
+        <div className="absolute inset-0 z-0 bg-black/60 sm:bg-black/40 bg-linear-to-t from-black/80 via-transparent to-black/50 pointer-events-none" />
 
         {/* Tagline */}
         <div className="absolute top-6 sm:top-10 left-0 right-0 z-10 flex justify-center px-4">

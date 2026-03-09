@@ -32,6 +32,18 @@ interface CreditsFilter {
   order:  "desc" | "asc";
 }
 
+interface CreditsFilter {
+  type:   string;
+  search: string;
+  page:   number;
+  order:  "desc" | "asc";
+}
+
+interface BlogsFilter {
+  search: string;
+  page:   number;
+}
+
 interface DashboardUIState {
   // ── Sidebar ──────────────────────────────────────────────────────────────
   sidebarCollapsed: boolean;
@@ -51,6 +63,11 @@ interface DashboardUIState {
   creditsFilter: CreditsFilter;
   setCreditsFilter: (patch: Partial<CreditsFilter>) => void;
   resetCreditsFilter: () => void;
+
+  // ── Blogs filter ─────────────────────────────────────────────────────────
+  blogsFilter: BlogsFilter;
+  setBlogsFilter: (patch: Partial<BlogsFilter>) => void;
+  resetBlogsFilter: () => void;
 }
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
@@ -65,6 +82,10 @@ const DEFAULT_USERS_FILTER: UsersFilter = {
 
 const DEFAULT_CREDITS_FILTER: CreditsFilter = {
   type: "", search: "", page: 1, order: "desc",
+};
+
+const DEFAULT_BLOGS_FILTER: BlogsFilter = {
+  search: "", page: 1,
 };
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -93,6 +114,12 @@ export const useDashboardStore = create<DashboardUIState>()(
       setCreditsFilter: (patch) =>
         set((s) => ({ creditsFilter: { ...s.creditsFilter, ...patch } })),
       resetCreditsFilter: () => set({ creditsFilter: DEFAULT_CREDITS_FILTER }),
+
+      // Blogs
+      blogsFilter: DEFAULT_BLOGS_FILTER,
+      setBlogsFilter: (patch) =>
+        set((s) => ({ blogsFilter: { ...s.blogsFilter, ...patch } })),
+      resetBlogsFilter: () => set({ blogsFilter: DEFAULT_BLOGS_FILTER }),
     }),
     {
       name:    "pixelmind-dashboard-ui",           // localStorage key

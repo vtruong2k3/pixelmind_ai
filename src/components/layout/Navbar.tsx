@@ -9,7 +9,9 @@ const NAV_ITEMS = [
   { label: "Tính năng", href: "/#features" },
   { label: "Studio", href: "/studio" },
   { label: "Gallery", href: "/gallery" },
+  { label: "Blog", href: "/blog" },
   { label: "Pricing", href: "/pricing" },
+  
 ];
 
 export default function Navbar() {

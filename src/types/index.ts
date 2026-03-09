@@ -146,3 +146,43 @@ export interface DashboardData {
   recentJobs: HistoryItem[];
   recentTransactions: { id: string; amount: number; type: string; description: string; createdAt: Date }[];
 }
+
+// =============================================
+// Blog / Post types
+// =============================================
+export interface BlogAuthor {
+  name:  string | null;
+  image: string | null;
+  email: string;
+}
+
+/** Dùng trong list page — không kèm content đầy đủ */
+export interface Blog {
+  id:         string;
+  slug:       string;
+  title:      string;
+  excerpt:    string | null;
+  coverImage: string | null;
+  published:  boolean;
+  author:     BlogAuthor;
+  createdAt:  string;   // ISO string từ API
+  updatedAt:  string;
+}
+
+/** Dùng trong detail page — kèm đầy đủ content */
+export interface BlogDetail extends Blog {
+  content: string;
+}
+
+export interface BlogListParams {
+  page?:   number;
+  limit?:  number;
+  search?: string;
+}
+
+export interface BlogListResponse {
+  blogs:      Blog[];
+  total:      number;
+  page:       number;
+  totalPages: number;
+}

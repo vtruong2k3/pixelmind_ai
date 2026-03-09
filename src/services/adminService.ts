@@ -104,6 +104,28 @@ export interface AdminFeature {
   _count?: { jobs: number };
 }
 
+export interface AdminBlog {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  content: string;
+  coverImage: string | null;
+  published: boolean;
+  authorId: string;
+  createdAt: string;
+  updatedAt: string;
+  author: { name: string | null; email: string; image: string | null };
+}
+
+export interface AdminBlogsResponse {
+  blogs: AdminBlog[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+
 // ─── Service Methods ──────────────────────────────────────────
 
 export const adminService = {
@@ -197,5 +219,30 @@ export const adminService = {
   async searchUsers(q: string): Promise<AdminUser[]> {
     const { data } = await api.get<AdminUsersResponse>("/admin/users", { params: { search: q, limit: 5 } });
     return data.users;
+  },
+
+  /** Blogs */
+  async getBlogs(params?: {
+    page?: number; limit?: number; search?: string;
+  }): Promise<AdminBlogsResponse> {
+    const { data } = await api.get<AdminBlogsResponse>("/admin/blogs", { params });
+    return data;
+  },
+
+  async createBlog(payload: {
+    title: string; slug: string; excerpt?: string; content: string; coverImage?: string; published?: boolean;
+  }): Promise<AdminBlog> {
+    const { data } = await api.post<{ blog: AdminBlog }>("/admin/blogs", payload);
+    return data.blog;
+  },
+
+  async updateBlog(id: string, payload: Partial<AdminBlog>) {
+    const { data } = await api.patch<{ blog: AdminBlog }>(`/admin/blogs/${id}`, payload);
+    return data.blog;
+  },
+
+  async deleteBlog(id: string) {
+    const { data } = await api.delete(`/admin/blogs/${id}`);
+    return data;
   },
 };

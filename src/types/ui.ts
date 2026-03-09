@@ -73,6 +73,8 @@ export interface NewsCard {
   title: string;
   gradient: string;
   featured: boolean;
+  slug?: string;
+  coverImage?: string | null;
 }
 
 export interface FitCard {

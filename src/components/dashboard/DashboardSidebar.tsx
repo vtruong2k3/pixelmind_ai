@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import {
   LayoutDashboard, Users, Briefcase, CreditCard,
-  Cpu, BarChart3, Settings, LogOut, ChevronRight, Sparkles
+  Cpu, BarChart3, Settings, LogOut, ChevronRight, Sparkles, BookOpen
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { hasMinRole, ROLE_LABELS, ROLE_COLORS, type UserRole } from "@/lib/roles";
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/credits",  label: "Giao dịch",       icon: CreditCard,      minRole: "STAFF" as UserRole },
   { href: "/dashboard/users",    label: "Người dùng",      icon: Users,           minRole: "ADMIN" as UserRole },
   { href: "/dashboard/features", label: "Tính năng AI",    icon: Cpu,             minRole: "ADMIN" as UserRole },
+  { href: "/dashboard/blogs",    label: "Quản lý Blog",    icon: BookOpen,        minRole: "ADMIN" as UserRole },
   { href: "/dashboard/stats",    label: "Thống kê",        icon: BarChart3,       minRole: "ADMIN" as UserRole },
   { href: "/dashboard/settings", label: "Cài đặt",         icon: Settings,        minRole: "USER"  as UserRole },
 ];

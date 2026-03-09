@@ -56,6 +56,7 @@ model User {
   sessions           Session[]
   likes              Like[]
   creditTransactions CreditTransaction[]
+  posts              Post[]
 }
 
 
@@ -187,4 +188,26 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// =============================================
+// BLOG - Bài viết / Tin tức
+// =============================================
+model Post {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String?  @db.Text
+  content     String   @db.Text
+  coverImage  String?
+  published   Boolean  @default(false)
+  
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([published, createdAt])
 }

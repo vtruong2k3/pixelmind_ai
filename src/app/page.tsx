@@ -19,26 +19,34 @@ import { FIcon } from "@/components/studio/icons";
 // ─────────────────────────────────────
 // DATA (page-specific, không cần share)
 // ─────────────────────────────────────
-const NEWS_CARDS: NewsCard[] = [
-  {
-    date: "THÁNG 3, 2025",
-    title: "PixelMind AI [pro]: Thay áo cực kỳ chính xác — giữ nguyên họa tiết",
-    gradient: "linear-gradient(160deg, #0d1117 0%, #1a2a1a 40%, #3a1a0a 70%, #1a0a0a 100%)",
-    featured: true,
-  },
-  {
-    date: "THÁNG 2, 2025",
-    title: "Phục hồi ảnh cũ — chất lượng 4K",
-    gradient: "linear-gradient(135deg, #0a1628 0%, #1a2a3a 50%, #0a2a1a 100%)",
-    featured: false,
-  },
-  {
-    date: "THÁNG 1, 2025",
-    title: "Anime Style AI — siêu nét, màu sắc tuyệt đẹp",
-    gradient: "linear-gradient(135deg, #1a0a2a 0%, #2a0a3a 50%, #0a0a2a 100%)",
-    featured: false,
-  },
+const FALLBACK_GRADIENTS = [
+  "linear-gradient(160deg, #0d1117 0%, #1a2a1a 40%, #3a1a0a 70%, #1a0a0a 100%)",
+  "linear-gradient(135deg, #0a1628 0%, #1a2a3a 50%, #0a2a1a 100%)",
+  "linear-gradient(135deg, #1a0a2a 0%, #2a0a3a 50%, #0a0a2a 100%)",
 ];
+
+async function getLatestBlogs() {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const posts = await prisma.post.findMany({
+      where: { published: true },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      select: { slug: true, title: true, createdAt: true, coverImage: true },
+    });
+    return posts.map((p, i) => ({
+      slug: p.slug,
+      date: new Date(p.createdAt).toLocaleDateString("vi-VN", { month: "long", year: "numeric" }).toUpperCase(),
+      title: p.title,
+      gradient: FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length],
+      featured: i === 0,
+      coverImage: p.coverImage ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 
 const FIT_CARDS: FitCard[] = [
   {
@@ -78,7 +86,9 @@ const GALLERY_ITEMS: GalleryStripeItem[] = [
 // ─────────────────────────────────────
 // PAGE
 // ─────────────────────────────────────
-export default function HomePage() {
+export default async function HomePage() {
+  const newsCards = await getLatestBlogs();
+
   return (
     <div className="bg-white">
       <Navbar />
@@ -87,7 +97,7 @@ export default function HomePage() {
       <HeroSection />
 
       {/* Section 2 — "See what's new" bento */}
-      <BentoSection cards={NEWS_CARDS} />
+      <BentoSection cards={newsCards} />
 
       {/* Section 3 — 10 tính năng AI */}
       <FeaturesSection features={AI_FEATURES} />

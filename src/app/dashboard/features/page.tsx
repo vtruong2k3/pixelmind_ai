@@ -84,29 +84,45 @@ interface FeatureForm {
 
 const BLANK_FORM: FeatureForm = { slug: "", name: "", nameEn: "", description: "", prompt: "", category: "fashion", imageCount: 1, creditCost: 10, sortOrder: 0 };
 
+const generateSlug = (text: string) => {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+};
+
 function FeatureFormFields({ form, onChange }: { form: FeatureForm; onChange: (patch: Partial<FeatureForm>) => void }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Tên (VI) *</label>
-          <Input value={form.name} onChange={e => onChange({ name: e.target.value })} className="bg-zinc-900 border-zinc-800 text-white" placeholder="vd: Thay áo" />
+          <Input value={form.name} onChange={e => {
+            const val = e.target.value;
+            onChange({ name: val, slug: generateSlug(form.nameEn || val) });
+          }} className="bg-zinc-900 border-zinc-800 text-white" placeholder="vd: Thay áo" />
         </div>
         <div>
           <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Tên (EN)</label>
-          <Input value={form.nameEn} onChange={e => onChange({ nameEn: e.target.value })} className="bg-zinc-900 border-zinc-800 text-white" placeholder="vd: Swap Shirt" />
+          <Input value={form.nameEn} onChange={e => {
+            const val = e.target.value;
+            onChange({ nameEn: val, slug: generateSlug(val || form.name) });
+          }} className="bg-zinc-900 border-zinc-800 text-white" placeholder="vd: Swap Shirt" />
         </div>
       </div>
       <div>
         <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Slug * <span style={{ color: "#52525b" }}>(không dấu, dùng _)</span></label>
-        <Input value={form.slug} onChange={e => onChange({ slug: e.target.value.toLowerCase().replace(/\s+/g, "_") })} className="bg-zinc-900 border-zinc-800 text-white font-mono" placeholder="vd: swap_shirt" />
+        <Input value={form.slug} onChange={e => onChange({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })} className="bg-zinc-900 border-zinc-800 text-white font-mono" placeholder="vd: swap_shirt" />
       </div>
       <div>
         <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Mô tả</label>
         <Input value={form.description} onChange={e => onChange({ description: e.target.value })} className="bg-zinc-900 border-zinc-800 text-white" placeholder="Mô tả ngắn về tính năng..." />
       </div>
       <div>
-        <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Prompt AI *</label>
+        <label className="text-xs font-semibold mb-1.5 block text-zinc-400">Prompt AI</label>
         <textarea
         value={form.prompt}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange({ prompt: e.target.value })}
@@ -294,7 +310,7 @@ function FeaturesInner() {
             <FeatureFormFields form={createForm} onChange={patch => setCreateForm(prev => ({ ...prev, ...patch }))} />
             <div className="flex gap-2 mt-4">
               <Button variant="outline" className="flex-1 border-zinc-800 text-zinc-400" onClick={() => setCreating(false)}>Hủy</Button>
-              <Button className="flex-1 text-white font-bold" disabled={createMut.isPending || !createForm.slug || !createForm.name || !createForm.prompt}
+              <Button className="flex-1 text-white font-bold" disabled={createMut.isPending || !createForm.slug || !createForm.name}
                 onClick={() => createMut.mutate()}
                 style={{ background: "linear-gradient(135deg,#16a34a,#059669)" }}>
                 {createMut.isPending ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <Plus size={13} className="mr-1.5" />}

@@ -27,9 +27,9 @@ export async function POST(req: NextRequest) {
     const { slug, name, nameEn, description, prompt, category, imageCount, creditCost, sortOrder } = body;
 
     // Validate required fields
-    if (!slug || !name || !prompt || !category) {
+    if (!slug || !name || !category) {
       return NextResponse.json(
-        { error: "slug, name, prompt, category là bắt buộc" },
+        { error: "slug, name, category là bắt buộc" },
         { status: 400 }
       );
     }
@@ -49,11 +49,11 @@ export async function POST(req: NextRequest) {
         name:        name.trim(),
         nameEn:      (nameEn ?? name).trim(),
         description: description?.trim() ?? null,
-        prompt:      prompt.trim(),
+        prompt:      prompt?.trim() ?? "",
         category,
-        imageCount:  Number(imageCount) || 1,
-        creditCost:  Number(creditCost) || 10,
-        sortOrder:   Number(sortOrder)  || 0,
+        imageCount:  imageCount !== undefined ? Number(imageCount) : 1,
+        creditCost:  creditCost !== undefined ? Number(creditCost) : 10,
+        sortOrder:   sortOrder !== undefined ? Number(sortOrder) : 0,
         isActive:    true,
       },
     });

@@ -34,11 +34,14 @@ export default function BentoSection({ cards }: BentoSectionProps) {
         {featured.map((card: NewsCard, i: number) => (
           <Link
             key={i}
-            href="/studio"
+            href={card.slug ? `/blog/${card.slug}` : "/blog"}
             className="block rounded-3xl overflow-hidden relative cursor-pointer group"
-            style={{ minHeight: "480px", background: card.gradient }}
+            style={{ 
+              minHeight: "480px", 
+              background: card.coverImage ? `url(${card.coverImage}) center/cover no-repeat` : card.gradient 
+            }}
           >
-            <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
             <div className="absolute bottom-0 left-0 p-7">
               <p className="mono text-xs text-white/50 mb-3 tracking-widest">{card.date}</p>
               <h3 className="text-2xl font-bold text-white leading-tight max-w-xs tracking-tight">{card.title}</h3>
@@ -56,11 +59,14 @@ export default function BentoSection({ cards }: BentoSectionProps) {
           {stacked.map((card: NewsCard, i: number) => (
             <Link
               key={i}
-              href="/studio"
+              href={card.slug ? `/blog/${card.slug}` : "/blog"}
               className="block rounded-3xl overflow-hidden relative cursor-pointer group flex-1"
-              style={{ minHeight: "225px", background: card.gradient }}
+              style={{ 
+                minHeight: "225px", 
+                background: card.coverImage ? `url(${card.coverImage}) center/cover no-repeat` : card.gradient 
+              }}
             >
-              <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 p-6">
                 <p className="mono text-xs text-white/50 mb-2 tracking-widest">{card.date}</p>
                 <h3 className="text-lg font-bold text-white leading-tight tracking-tight">{card.title}</h3>
