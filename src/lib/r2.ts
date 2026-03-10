@@ -1,57 +1,97 @@
 /**
- * lib/r2.ts — Storage abstraction
+ * lib/r2.ts — Cloudflare R2 Storage (S3-compatible)
  *
- * Hiện tại: lưu ảnh dưới dạng base64 data URL vào DB (không cần R2/S3).
- * Khi có tiền/muốn dùng Cloudflare R2: uncomment phần S3Client bên dưới
- * và comment lại phần base64.
- *
- * Base64 pros: miễn phí, không cần env vars, hoạt động ngay lập tức.
- * Base64 cons: tốn dung lượng DB (~33% lớn hơn file gốc).
- * Với NeonDB free tier (512MB) và ảnh ~200-500KB → ổn cho dev/test.
+ * Upload ảnh lên R2 thay vì lưu base64 vào DB.
+ * R2 free tier: 10GB storage + 1M requests/tháng.
  */
 
-export type UploadFolder = "inputs" | "outputs";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { v4 as uuidv4 } from "uuid";
+
+const accountId = process.env.CLOUDFLARE_ACCOUNT_ID!;
+const publicUrl = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, ""); // bỏ dấu / cuối
+
+const s3 = new S3Client({
+  region: "auto",
+  endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
+
+const BUCKET = process.env.R2_BUCKET_NAME!;
+
+export type UploadFolder = "inputs" | "outputs" | "uploads";
 
 /**
- * "Upload" buffer → trả về base64 data URL
- * Thay thế R2 hoàn toàn, không cần credentials.
+ * Upload buffer lên R2.
+ * Trả về URL công khai có thể truy cập trực tiếp.
  */
 export async function uploadToR2(
-  buffer: Uint8Array,
-  _folder: UploadFolder = "outputs",
-  _extension = "png",
+  buffer: Uint8Array | Buffer,
+  folder: UploadFolder = "outputs",
+  extension = "png",
   contentType = "image/png"
 ): Promise<string> {
-  const base64 = Buffer.from(buffer).toString("base64");
-  return `data:${contentType};base64,${base64}`;
+  const key = `${folder}/${uuidv4()}.${extension}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer),
+      ContentType: contentType,
+    })
+  );
+
+  return `${publicUrl}/${key}`;
 }
 
 /**
- * Download URL → base64 data URL
+ * Download ảnh từ URL rồi upload lên R2.
+ * Dùng khi Chainhub trả về pre-signed URL, cần lưu trữ vĩnh viễn.
  */
 export async function uploadUrlToR2(
   url: string,
   folder: UploadFolder = "inputs"
 ): Promise<string> {
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: { "User-Agent": "PixelMind/1.0" } });
+  if (!res.ok) {
+    throw new Error(`[r2] Download thất bại: ${res.status} ${url}`);
+  }
+
   const buffer = Buffer.from(await res.arrayBuffer());
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  return uploadToR2(buffer, folder, "jpg", contentType);
+  const contentType = res.headers.get("content-type") || "image/png";
+  const extension = contentType.split("/")[1]?.split(";")[0] || "png";
+
+  return uploadToR2(buffer, folder, extension, contentType);
 }
 
 /**
- * Presigned URL — không áp dụng với base64 storage.
+ * Xóa file khỏi R2 theo public URL.
+ * Ví dụ: https://pub-xxx.r2.dev/outputs/uuid.png
+ */
+export async function deleteFromR2(url: string): Promise<void> {
+  try {
+    // Tách key từ URL: bỏ phần publicUrl ở đầu
+    const key = url.replace(`${publicUrl}/`, "");
+    if (!key || key === url) return; // URL không phải R2 → bỏ qua
+
+    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+    console.log(`[r2] Deleted: ${key}`);
+  } catch (err) {
+    console.error("[r2] deleteFromR2 error:", err);
+  }
+}
+
+/**
+ * Presigned upload URL (dành cho future use / client-side upload).
  */
 export async function createPresignedUploadUrl(
   _key: string,
   _contentType: string
 ): Promise<string> {
+  // Chưa implement — dùng uploadToR2 server-side thay thế
   return "";
-}
-
-/**
- * Xoá file — no-op với base64 storage (xoá trong DB).
- */
-export async function deleteFromR2(_url: string): Promise<void> {
-  // Xoá record trong DB là đủ
 }

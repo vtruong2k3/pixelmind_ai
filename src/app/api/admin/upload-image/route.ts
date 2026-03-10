@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { uploadToR2 } from "@/lib/r2";
 
 // POST /api/admin/upload-image
 // Body: FormData { file: File }
+// Uploads the image to Cloudflare R2 and returns the public URL.
 export async function POST(req: Request) {
   try {
     const session = await auth();
@@ -28,11 +30,14 @@ export async function POST(req: Request) {
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json({ error: "File tối đa 5MB" }, { status: 400 });
     }
-
-    // Convert to base64 data URL (stored in DB)
-    const buffer  = Buffer.from(await file.arrayBuffer());
-    const base64  = buffer.toString("base64");
-    const url     = `data:${file.type};base64,${base64}`;
+    // // Convert to base64 data URL (stored in DB)
+    // const buffer  = Buffer.from(await file.arrayBuffer());
+    // const base64  = buffer.toString("base64");
+    // const url     = `data:${file.type};base64,${base64}`;
+    // Upload lên Cloudflare R2
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const extension = file.type.split("/")[1] || "png";
+    const url = await uploadToR2(buffer, "uploads", extension, file.type);
 
     return NextResponse.json({ url });
   } catch (err: any) {

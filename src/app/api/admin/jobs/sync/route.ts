@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pollOnce } from "@/lib/chainhub";
 import { requireRoleResponse } from "@/lib/roles";
+import { uploadUrlToR2 } from "@/lib/r2";
 
 /**
  * POST /api/admin/jobs/sync
@@ -41,16 +42,15 @@ export async function POST(req: NextRequest) {
       if (newStatus === job.status) continue; // không thay đổi
 
       if (newStatus === "COMPLETED" && result.outputUrl) {
-        // Download và lưu ảnh
+        // Upload ảnh lên Cloudflare R2 để lưu vĩnh viễn (thay vì base64 vào DB)
         let storedUrl = result.outputUrl;
         try {
-          const imgRes = await fetch(result.outputUrl, { headers: { "User-Agent": "PixelMind/1.0" } });
-          if (imgRes.ok) {
-            const contentType = imgRes.headers.get("content-type") || "image/png";
-            const buffer = Buffer.from(await imgRes.arrayBuffer());
-            storedUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
-          }
-        } catch { /* giữ URL gốc nếu download fail */ }
+          storedUrl = await uploadUrlToR2(result.outputUrl, "outputs");
+          console.log(`[sync] Uploaded to R2: ${storedUrl}`);
+        } catch (uploadErr) {
+          console.error("[sync] R2 upload thất bại, giữ Chainhub URL:", uploadErr);
+          // Fallback: giữ URL gốc của Chainhub (hết hạn sau 7 ngày)
+        }
 
         await prisma.$executeRaw`
           UPDATE "Job" SET status = 'COMPLETED', "outputUrl" = ${storedUrl}, "updatedAt" = NOW()
