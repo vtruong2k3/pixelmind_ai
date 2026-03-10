@@ -64,7 +64,7 @@ export default function GalleryStrip({ items }: GalleryStripProps) {
                   href="/gallery"
                   key={`${img.id}-${i}`}
                   className="rounded-2xl overflow-hidden shrink-0 relative group cursor-pointer block bg-gray-100"
-                  style={{ width: "220px", height: "220px" }}
+                  style={{ width: "260px", height: "340px" }}
                   tabIndex={-1}
                 >
                   <Image
@@ -72,7 +72,7 @@ export default function GalleryStrip({ items }: GalleryStripProps) {
                     alt={img.featureName ?? "Tác phẩm AI"}
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="220px"
+                    sizes="260px"
                     unoptimized
                   />
                   {/* Hover overlay */}
@@ -91,7 +91,7 @@ export default function GalleryStrip({ items }: GalleryStripProps) {
                   href="/gallery"
                   key={i}
                   className="rounded-2xl overflow-hidden shrink-0 relative group cursor-pointer block"
-                  style={{ width: "220px", height: "220px", background: item.gradient }}
+                  style={{ width: "260px", height: "340px", background: item.gradient }}
                   tabIndex={-1}
                 >
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />

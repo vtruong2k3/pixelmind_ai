@@ -38,6 +38,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
 
   const user = session?.user as any;
   const credits: number = user?.credits ?? 0;
+  const isAdmin = user?.role === "ADMIN";
 
   useEffect(() => {
     if (!transparent) return;
@@ -178,7 +179,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                         <div className="px-4 py-3 border-b border-gray-50">
                           <div className="flex items-center gap-1.5">
                             <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                            {(session?.user as any)?.isAdmin && (
+                            {isAdmin && (
                               <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#f59e0b" }}>
                                 <Shield size={9} color="white" />
                               </div>
@@ -189,7 +190,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
 
                         {/* Menu items */}
                         <div className="p-1.5">
-                          {(session?.user as any)?.isAdmin && (
+                          {isAdmin && (
                             <Link
                               href="/dashboard"
                               onClick={() => setDropdownOpen(false)}
@@ -228,7 +229,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                             style={{ color: "#7c3aed" }}
                           >
                             <Zap size={13} />
-                            {(session?.user as any)?.isAdmin ? "∞" : credits} credits còn lại
+                            {isAdmin ? "∞" : credits} credits còn lại
                           </div>
                         </div>
 
@@ -307,7 +308,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                     style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.1)" }}>
                     <Zap size={13} style={{ color: "#7c3aed" }} />
                     <span className="text-sm font-bold mono" style={{ color: "#7c3aed" }}>
-                      {(session.user as any)?.isAdmin ? "∞" : credits} credits
+                      {isAdmin ? "∞" : credits} credits
                     </span>
                     <Link href="/pricing" onClick={() => setMenuOpen(false)}
                       className="ml-auto text-xs font-semibold" style={{ color: "#7c3aed" }}>
@@ -339,7 +340,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                   {/* Accordion sub-menu */}
                   {dropdownOpen && (
                     <div className="mx-2 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex flex-col">
-                      {(session.user as any)?.isAdmin && (
+                      {isAdmin && (
                         <Link href="/dashboard" onClick={() => { setMenuOpen(false); setDropdownOpen(false); }}
                           className="flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-gray-100 transition-colors"
                           style={{ color: "#7c3aed" }}>
