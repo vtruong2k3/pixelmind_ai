@@ -29,6 +29,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
 
+        if (!user.emailVerified) {
+          throw new Error("Email chưa được xác thực. Vui lòng kiểm tra hộp thư của bạn.");
+        }
+
         return {
           id:    user.id,
           name:  user.name,

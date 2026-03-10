@@ -40,10 +40,8 @@ export default function RegisterForm({ callbackUrl, onSwitchToLogin }: RegisterF
   const onSubmit = async (data: RegisterInput) => {
     try {
       await registerUser(data);
-      toast.success("Tạo tài khoản thành công! Đang đăng nhập...");
-      // Auto login after register
-      const res = await loginWithEmail({ email: data.email, password: data.password }, callbackUrl);
-      if (res?.url) window.location.href = res.url;
+      toast.success("Đăng ký thành công! Vui lòng kiểm tra hộp thư email của bạn để xác thực tài khoản.", { duration: 6000 });
+      onSwitchToLogin();
     } catch (err) {
       const axiosErr = err as AxiosError<{ error?: string }>;
       const msg = axiosErr.response?.data?.error ?? "Đã xảy ra lỗi. Vui lòng thử lại.";

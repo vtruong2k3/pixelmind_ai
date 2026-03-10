@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { sendVerificationEmail } from "@/lib/mail";
+import crypto from "crypto";
 
 export async function POST(req: Request) {
   try {
@@ -24,11 +26,30 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: { name, email, password: hashedPassword },
     });
 
-    return NextResponse.json({ message: "Tạo tài khoản thành công!" }, { status: 201 });
+    // Generate token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 24 * 3600 * 1000); // 24 hours
+
+    await prisma.verificationToken.create({
+      data: {
+        identifier: email,
+        token,
+        expires,
+      },
+    });
+
+    // Send verification email
+    const emailSent = await sendVerificationEmail(email, token);
+    
+    if (!emailSent) {
+       console.warn("Could not send verification email to:", email, "but account was created.");
+    }
+
+    return NextResponse.json({ message: "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản." }, { status: 201 });
   } catch (err) {
     console.error("[register]", err);
     return NextResponse.json({ error: "Lỗi máy chủ. Vui lòng thử lại." }, { status: 500 });

@@ -39,12 +39,22 @@ export default function LoginForm({ callbackUrl, onSwitchToRegister }: LoginForm
     try {
       const res = await loginWithEmail(data, callbackUrl);
       if (res?.error) {
-        setError("root", { message: "Email hoặc mật khẩu không đúng." });
+        // Map NextAuth error codes to user-friendly messages
+        const errorMsg =
+          res.error === "CredentialsSignin"
+            ? "Email hoặc mật khẩu không đúng."
+            : res.error.includes("xác thực") || res.error.includes("verified")
+            ? "Email chưa được xác thực. Vui lòng kiểm tra hộp thư của bạn."
+            : res.error;
+        setError("root", { message: errorMsg });
       } else if (res?.url) {
         window.location.href = res.url;
       }
-    } catch {
-      setError("root", { message: "Có lỗi xảy ra. Vui lòng thử lại." });
+    } catch (err: any) {
+      const msg = err?.message?.includes("xác thực")
+        ? "Email chưa được xác thực. Vui lòng kiểm tra hộp thư của bạn."
+        : "Có lỗi xảy ra. Vui lòng thử lại.";
+      setError("root", { message: msg });
     }
   };
 

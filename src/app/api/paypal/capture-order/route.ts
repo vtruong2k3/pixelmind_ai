@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PAYPAL_PLANS } from "../create-order/route";
+import { sendPackageUpgradeEmail } from "@/lib/mail";
 
 async function getPayPalAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID!;
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
     // ── Bước 4: Tính ngày hết hạn gói (30 ngày) ──
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { plan: true, planExpiresAt: true } as any,
+      select: { email: true, plan: true, planExpiresAt: true } as any,
     }) as any;
 
     const now = new Date();
@@ -140,6 +141,16 @@ export async function POST(req: NextRequest) {
     ]);
 
     console.log(`[capture-order] ✅ Thành công: userId=${userId} plan=${planId} credits+=${creditsToAdd} expiresAt=${newExpiresAt.toISOString()}`);
+
+    // Gửi email thông báo
+    if (currentUser?.email) {
+      await sendPackageUpgradeEmail(
+        currentUser.email,
+        plan.planKey || planId, // planKey thường là tên gói như starter, pro, max
+        "30 ngày",
+        newExpiresAt
+      ).catch(err => console.error("[capture-order] Gửi email lỗi:", err));
+    }
 
     return NextResponse.json({
       success: true,
