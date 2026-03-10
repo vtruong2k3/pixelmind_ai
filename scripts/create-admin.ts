@@ -34,18 +34,19 @@ async function main() {
 
     const user = await prisma.user.upsert({
       where:  { email: acc.email },
-      update: { role: acc.role, password: hash },
+      update: { role: acc.role, password: hash, emailVerified: new Date() },
       create: {
-        name:     acc.name,
-        email:    acc.email,
-        password: hash,
-        role:     acc.role,
-        credits:  acc.credits,
-        plan:     acc.plan,
+        name:          acc.name,
+        email:         acc.email,
+        password:      hash,
+        role:          acc.role,
+        credits:       acc.credits,
+        plan:          acc.plan,
+        emailVerified: new Date(), // Admin không cần xác thực email
       },
     });
 
-    console.log(`✅ [${user.role}] ${user.email} — id: ${user.id}`);
+    console.log(` [${user.role}] ${user.email} — id: ${user.id}`);
   }
 }
 

@@ -91,7 +91,7 @@ export function DashboardSidebar() {
           </span>
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut({ callbackUrl: "/dashboard/login" })}
           className="flex items-center gap-2.5 px-3 py-2 rounded-xl w-full text-sm transition-colors"
           style={{ color: "#71717a" }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#f87171"; }}

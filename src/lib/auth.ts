@@ -29,7 +29,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
 
-        if (!user.emailVerified) {
+        // Bỏ qua check emailVerified cho ADMIN và STAFF (tạo bằng script)
+        const isAdminOrStaff = user.role === "ADMIN" || user.role === "STAFF";
+        if (!isAdminOrStaff && !user.emailVerified) {
           throw new Error("Email chưa được xác thực. Vui lòng kiểm tra hộp thư của bạn.");
         }
 
