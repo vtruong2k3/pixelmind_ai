@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pollOnce } from "@/lib/chainhub";
 import { hasMinRole } from "@/lib/roles";
+import { uploadUrlToR2 } from "@/lib/r2";
 
 export async function GET(req: NextRequest) {
   try {
@@ -61,27 +62,21 @@ export async function GET(req: NextRequest) {
         WHERE id = ${job.id}
       `;
 
-      // 2. Tải và convert sang Base64 ngầm vào DB (dùng sau này cho Gallery) 
-      // Tiến trình này chạy nền không làm kẹt luồng trả về
+      // 2. Upload ảnh lên Cloudflare R2 (chạy nền, không block response)
+      // R2 URL vĩnh viễn thay vì S3 pre-signed URL hết hạn sau 7 ngày
       (async () => {
         try {
-          const imgRes = await fetch(rawUrl, {
-            headers: { "User-Agent": "PixelMind/1.0" },
-          });
-          if (imgRes.ok) {
-            const contentType = imgRes.headers.get("content-type") || "image/png";
-            const buffer = Buffer.from(await imgRes.arrayBuffer());
-            const b64 = `data:${contentType};base64,${buffer.toString("base64")}`;
+          const r2Url = await uploadUrlToR2(rawUrl, "outputs");
 
-            // Ghi đè Base64 thay S3 URL
-            await prisma.$executeRaw`
-              UPDATE "Job" SET "outputUrl" = ${b64}
-              WHERE id = ${job.id}
-            `;
-            console.log(`[status-bg] Ảnh lưu base64 thành công (${Math.round(buffer.byteLength / 1024)}KB) job=${job.id}`);
-          }
-        } catch (downloadErr) {
-          console.warn("[status-bg] Download error:", downloadErr);
+          // Ghi đè S3 URL bằng R2 public URL
+          await prisma.$executeRaw`
+            UPDATE "Job" SET "outputUrl" = ${r2Url}
+            WHERE id = ${job.id}
+          `;
+          console.log(`[status-bg] Ảnh upload R2 thành công: ${r2Url} — job=${job.id}`);
+        } catch (uploadErr) {
+          console.warn("[status-bg] R2 upload error:", uploadErr);
+          // Giữ nguyên S3 URL nếu upload R2 thất bại (ảnh vẫn hiển thị được trong 7 ngày)
         }
       })().catch(console.error);
 
