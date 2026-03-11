@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Download, Globe, Lock, Zap, Sparkles, Trash2, RefreshCw } from "lucide-react";
+import { Download, Globe, Lock, Zap, Sparkles, Trash2, RefreshCw, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { userService, type HistoryItem } from "@/services/userService";
 
@@ -181,9 +181,24 @@ export default function HistoryPage() {
                   {/* Hover actions */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     {item.outputUrl && (
-                      <a href={item.outputUrl} download className="p-2 rounded-lg bg-white/90 text-gray-800 hover:bg-white transition-colors">
+                      <a href={item.outputUrl} download className="p-2 rounded-lg bg-white/90 text-gray-800 hover:bg-white transition-colors" title="Tải xuống">
                         <Download size={14} />
                       </a>
+                    )}
+                    {item.outputUrl && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(item.outputUrl!).then(() => {
+                            toast.success("Đã copy link ảnh!");
+                          }).catch(() => {
+                            toast.error("Không thể copy link.");
+                          });
+                        }}
+                        className="p-2 rounded-lg bg-white/90 text-gray-800 hover:bg-white transition-colors"
+                        title="Copy link ảnh"
+                      >
+                        <Link2 size={14} />
+                      </button>
                     )}
                     <button onClick={() => toggleMut.mutate(item)}
                       className="p-2 rounded-lg bg-white/90 text-gray-800 hover:bg-white transition-colors"

@@ -80,7 +80,9 @@ export default auth(function middleware(req) {
 
   // Redirect logged-in users away from /login
   if (pathname === "/login" && isLoggedIn) {
-    return Response.redirect(new URL("/dashboard", nextUrl.origin));
+    // STAFF/ADMIN → dashboard, USER thường → studio
+    const target = hasMinRole(role, "STAFF") ? "/dashboard" : "/studio";
+    return Response.redirect(new URL(target, nextUrl.origin));
   }
 });
 

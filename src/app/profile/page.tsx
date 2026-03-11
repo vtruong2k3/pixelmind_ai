@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import {
   Zap, CreditCard, ImageIcon, ArrowUpRight, ArrowDownRight,
   Shield, LogOut, History, Sparkles, TrendingUp, Loader2,
+  Calendar, Crown, Star,
 } from "lucide-react";
 import { userService, type UserDashboardData } from "@/services/userService";
 
@@ -195,7 +196,112 @@ export default function ProfilePage() {
           </Link>
         </div>
 
+        {/* ─── Subscription & Billing ─────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
+          <div className="px-5 py-4 flex items-center justify-between border-b border-gray-50">
+            <div>
+              <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <Crown size={14} style={{ color: "#7c3aed" }} />
+                Gói dịch vụ & Billing
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">Thông tin gói hiện tại của bạn</p>
+            </div>
+            <Link href="/pricing"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:-translate-y-0.5"
+              style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff", boxShadow: "0 2px 8px rgba(124,58,237,0.3)" }}>
+              <Sparkles size={11} /> Nâng cấp
+            </Link>
+          </div>
+
+          <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-5">
+            {/* Plan Badge */}
+            <div className="flex items-center gap-4 flex-1">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ background: planStyle.bg, boxShadow: planStyle.shadow }}>
+                {plan === "free" ? (
+                  <Star size={22} style={{ color: planStyle.color === "#fff" ? "#fff" : "#64748b" }} />
+                ) : (
+                  <Crown size={22} style={{ color: planStyle.color }} />
+                )}
+              </div>
+              <div>
+                <p className="text-lg font-black text-gray-900 tracking-tight">{planStyle.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {plan === "free"
+                    ? "Gói miễn phí — 10 credits/lần đăng ký"
+                    : user?.planExpiresAt
+                    ? (() => {
+                        const daysLeft = Math.ceil((new Date(user.planExpiresAt).getTime() - Date.now()) / 86400000);
+                        return daysLeft > 0
+                          ? `Còn ${daysLeft} ngày (hết hạn ${new Date(user.planExpiresAt).toLocaleDateString("vi-VN")})`
+                          : "Đã hết hạn";
+                      })()
+                    : "Không giới hạn thời gian"}
+                </p>
+              </div>
+            </div>
+
+            {/* Credits + Expiry details */}
+            <div className="flex gap-6 text-center shrink-0">
+              <div>
+                <p className="text-2xl font-black text-gray-900 mono">{isAdmin ? "∞" : credits.toLocaleString()}</p>
+                <p className="text-xs text-gray-400 flex items-center gap-1 justify-center mt-0.5">
+                  <Zap size={10} style={{ color: "#a78bfa" }} /> Credits còn lại
+                </p>
+              </div>
+              {plan !== "free" && user?.planExpiresAt && (
+                <div>
+                  <p className="text-2xl font-black mono"
+                    style={{
+                      color: Math.ceil((new Date(user.planExpiresAt).getTime() - Date.now()) / 86400000) <= 7
+                        ? "#ef4444" : "#059669"
+                    }}>
+                    {Math.max(0, Math.ceil((new Date(user.planExpiresAt).getTime() - Date.now()) / 86400000))}
+                  </p>
+                  <p className="text-xs text-gray-400 flex items-center gap-1 justify-center mt-0.5">
+                    <Calendar size={10} /> Ngày còn lại
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Warning if expiring soon */}
+          {plan !== "free" && user?.planExpiresAt && (() => {
+            const daysLeft = Math.ceil((new Date(user.planExpiresAt).getTime() - Date.now()) / 86400000);
+            if (daysLeft > 7) return null;
+            return (
+              <div className="mx-5 mb-5 px-4 py-3 rounded-xl text-sm"
+                style={{ background: daysLeft <= 0 ? "#fef2f2" : "#fffbeb", border: `1px solid ${daysLeft <= 0 ? "#fecaca" : "#fde68a"}` }}>
+                <p className="font-semibold" style={{ color: daysLeft <= 0 ? "#dc2626" : "#92400e" }}>
+                  {daysLeft <= 0
+                    ? "⚠️ Gói của bạn đã hết hạn! Gia hạn ngay để tiếp tục sử dụng."
+                    : `⏰ Gói sẽ hết hạn trong ${daysLeft} ngày. Gia hạn sớm để không bị gián đoạn.`}
+                </p>
+                <Link href="/pricing" className="inline-block mt-2 px-4 py-1.5 rounded-lg text-xs font-bold text-white"
+                  style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}>
+                  Gia hạn ngay →
+                </Link>
+              </div>
+            );
+          })()}
+
+          {plan === "free" && (
+            <div className="mx-5 mb-5 px-4 py-3 rounded-xl"
+              style={{ background: "linear-gradient(135deg,#f5f3ff,#ede9fe)", border: "1px solid #ddd6fe" }}>
+              <p className="text-sm font-semibold text-violet-700">🚀 Nâng cấp để tạo ảnh không giới hạn!</p>
+              <p className="text-xs text-violet-500 mt-0.5 mb-3">Starter từ chỉ $4.99/tháng — HD quality, ưu tiên xử lý.</p>
+              <Link href="/pricing"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-white transition-all hover:-translate-y-0.5"
+                style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 12px rgba(124,58,237,0.3)" }}>
+                <Crown size={12} /> Xem bảng giá
+              </Link>
+            </div>
+          )}
+        </div>
+
         {/* Recent Transactions */}
+
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-10 overflow-hidden">
           <div className="px-5 py-4 flex items-center justify-between border-b border-gray-50">
             <div>

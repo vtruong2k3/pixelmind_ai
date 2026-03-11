@@ -261,3 +261,107 @@ export async function sendPackageUpgradeEmail(
     return false;
   }
 }
+
+/* ======================================================
+   3. EMAIL ĐẶT LẠI MẬT KHẨU
+   ====================================================== */
+export async function sendResetPasswordEmail(email: string, token: string) {
+  const baseUrl =
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "http://localhost:3000";
+  const resetUrl = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+  const year = new Date().getFullYear();
+
+  const html = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Đặt lại mật khẩu - PixelMind AI</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f0f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f5;padding:40px 16px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 4px 32px rgba(0,0,0,0.10);">
+
+      <!-- HEADER -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#dc2626 0%,#b91c1c 55%,#7f1d1d 100%);padding:48px 40px 44px;text-align:center;">
+          <table cellpadding="0" cellspacing="0" style="margin:0 auto 20px;">
+            <tr><td style="background:rgba(255,255,255,0.18);border-radius:14px;padding:12px;">
+              <svg width="40" height="40" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="34" height="34" rx="7" fill="white" fill-opacity="0.25"/>
+                <path d="M7 25L13 9L19 21L23 15L27 25H7Z" fill="white"/>
+              </svg>
+            </td></tr>
+          </table>
+          <p style="color:rgba(255,255,255,0.75);font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin:0 0 14px;">PixelMind AI</p>
+          <h1 style="color:#fff;margin:0;font-size:28px;font-weight:800;line-height:1.3;">Đặt lại mật khẩu</h1>
+          <p style="color:rgba(255,255,255,0.82);margin:12px 0 0;font-size:15px;line-height:1.5;">Yêu cầu đặt lại mật khẩu của bạn đã được nhận.</p>
+        </td>
+      </tr>
+
+      <!-- BODY -->
+      <tr>
+        <td style="padding:40px 44px 36px;">
+          <p style="margin:0 0 14px;color:#1f2937;font-size:16px;font-weight:600;">Xin chào,</p>
+          <p style="margin:0 0 22px;color:#4b5563;font-size:15px;line-height:1.75;">
+            Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong style="color:#dc2626;">${email}</strong>.
+            Nhấn vào nút bên dưới để tạo mật khẩu mới.
+          </p>
+
+          <!-- CTA BUTTON -->
+          <table cellpadding="0" cellspacing="0" style="margin:32px auto;">
+            <tr><td align="center" style="border-radius:10px;background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 6px 20px rgba(220,38,38,0.45);">
+              <a href="${resetUrl}" style="display:inline-block;padding:16px 52px;color:#fff;font-size:16px;font-weight:700;text-decoration:none;border-radius:10px;letter-spacing:0.3px;">
+                🔐 Đặt lại mật khẩu
+              </a>
+            </td></tr>
+          </table>
+
+          <!-- INFO BOX -->
+          <table cellpadding="0" cellspacing="0" width="100%" style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;margin-bottom:24px;">
+            <tr><td style="padding:14px 18px;">
+              <p style="margin:0;color:#dc2626;font-size:13px;line-height:1.65;">
+                ⏰ <strong>Lưu ý:</strong> Đường liên kết này chỉ có hiệu lực trong <strong>1 giờ</strong>.
+                Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email này — mật khẩu của bạn <strong>sẽ không bị thay đổi</strong>.
+              </p>
+            </td></tr>
+          </table>
+
+          <p style="margin:0 0 8px;color:#9ca3af;font-size:13px;">Nút không hoạt động? Dán liên kết sau vào trình duyệt:</p>
+          <p style="margin:0;word-break:break-all;font-size:11px;color:#a1a1aa;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;">${resetUrl}</p>
+        </td>
+      </tr>
+
+      <!-- FOOTER -->
+      <tr><td style="padding:0 44px;"><div style="height:1px;background:#f3f4f6;"></div></td></tr>
+      <tr>
+        <td style="padding:22px 44px 32px;text-align:center;">
+          <p style="margin:0 0 6px;color:#9ca3af;font-size:12px;">&copy; ${year} PixelMind AI. All rights reserved.</p>
+          <p style="margin:0;color:#c4c4cc;font-size:11px;">Email được gửi tự động, vui lòng không phản hồi.</p>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+
+  try {
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to: email,
+      subject: "[PixelMind AI] Yêu cầu đặt lại mật khẩu",
+      html,
+    });
+    console.log("[mail] Reset password email sent:", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("[mail] Error sending reset password email:", error);
+    return false;
+  }
+}
+

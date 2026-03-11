@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Heart, Download, Sparkles, X, Loader2 } from "lucide-react";
+import { Heart, Download, Sparkles, X, Loader2, Link2, Search } from "lucide-react";
+import { toast } from "sonner";
 
 const CATEGORIES = [
   { id: "all",        label: "Tất cả"     },
@@ -57,6 +58,7 @@ async function fetchGalleryPage({ pageParam, filter }: { pageParam?: string; fil
 export default function GalleryPage() {
   // filter là local state vì nó reset toàn bộ query khi thay đổi
   const [filter,   setFilter]   = useState("all");
+  const [search,   setSearch]   = useState("");
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
   const qc = useQueryClient();
 
@@ -75,7 +77,11 @@ export default function GalleryPage() {
     staleTime: 60_000, // cache 1 phút — quay lại trang không fetch lại
   });
 
-  const items: GalleryItem[] = data?.pages.flatMap(p => p.items) ?? [];
+  const allItems: GalleryItem[] = data?.pages.flatMap(p => p.items) ?? [];
+  // Client-side search filter
+  const items = search.trim()
+    ? allItems.filter(i => i.featureName.toLowerCase().includes(search.trim().toLowerCase()))
+    : allItems;
 
   // ── Like/unlike với optimistic update ──────────────────────────────────
   const likeMut = useMutation({
@@ -140,6 +146,25 @@ export default function GalleryPage() {
             style={{ background: "var(--cta-gradient)", boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
             <Sparkles size={15} /> Tạo ảnh ngay
           </Link>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative mb-4">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            id="gallery-search"
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Tìm kiếm theo tính năng..."
+            className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:border-violet-400 placeholder:text-gray-300 transition-all"
+          />
+          {search && (
+            <button onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* Filter chips */}
@@ -218,6 +243,20 @@ export default function GalleryPage() {
                           {item.likeCount}
                         </button>
                         {item.outputUrl && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.outputUrl!).then(() => {
+                                toast.success("Đã copy link ảnh!");
+                              }).catch(() => toast.error("Không thể copy link."));
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-white"
+                            style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}
+                            title="Copy link"
+                          >
+                            <Link2 size={11} />
+                          </button>
+                        )}
+                        {item.outputUrl && (
                           <a href={item.outputUrl} download onClick={e => e.stopPropagation()}
                             className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-white"
                             style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}>
@@ -269,6 +308,18 @@ export default function GalleryPage() {
                   style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}>
                   <Heart size={13} fill={lightbox.isLikedByMe ? "#f87171" : "none"} stroke={lightbox.isLikedByMe ? "#f87171" : "white"} />
                   {lightbox.likeCount}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(lightbox.outputUrl).then(() => {
+                      toast.success("Đã copy link ảnh!");
+                    }).catch(() => toast.error("Không thể copy link."));
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-white"
+                  style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}
+                  title="Copy link"
+                >
+                  <Link2 size={13} />
                 </button>
                 <a href={lightbox.outputUrl} download
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-white"

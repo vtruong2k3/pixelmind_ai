@@ -16,8 +16,7 @@ export const blogFormSchema = z.object({
   excerpt: z
     .string()
     .max(500, "Tóm tắt tối đa 500 ký tự")
-    .optional()
-    .or(z.literal("")),
+    .default(""),
 
   content: z
     .string()
@@ -25,10 +24,9 @@ export const blogFormSchema = z.object({
 
   coverImage: z
     .string()
-    .optional()
-    .or(z.literal("")),
+    .default(""),
 
-  published: z.boolean(),
+  published: z.boolean().default(false),
 });
 
 export type BlogFormValues = z.infer<typeof blogFormSchema>;

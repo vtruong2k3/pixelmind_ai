@@ -148,6 +148,13 @@ export default function LoginForm({ callbackUrl, onSwitchToRegister }: LoginForm
         </div>
 
         {/* Submit */}
+        <div className="flex justify-end -mt-2">
+          <a href="/forgot-password" className="text-xs text-violet-500 hover:underline">
+            Quên mật khẩu?
+          </a>
+        </div>
+        {/* Submit */}
+
         <button
           type="submit"
           disabled={isSubmitting || googleLoading}

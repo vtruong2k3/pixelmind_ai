@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { X, Zap, ChevronDown, LogOut, History, User, CreditCard, Shield, Menu, LayoutGrid } from "lucide-react";
+import { NotificationBell } from "@/components/layout/NotificationBell";
+
 
 const NAV_ITEMS = [
  
@@ -141,6 +143,9 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                   <Zap size={11} />
                   {credits} credits
                 </Link>
+
+                {/* Notification Bell */}
+                <NotificationBell />
 
                 {/* Avatar dropdown */}
                 <div className="relative">

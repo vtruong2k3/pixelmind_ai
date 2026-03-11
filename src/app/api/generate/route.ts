@@ -4,6 +4,24 @@ import { prisma } from "@/lib/prisma";
 import { submitTask } from "@/lib/chainhub";
 import { hasMinRole } from "@/lib/roles";
 
+// ── In-memory rate limiter: 5 requests / user / 60s ──────────────────────
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 5;
+const RATE_WINDOW_MS = 60_000; // 1 minute
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true; // allowed
+  }
+  if (entry.count >= RATE_LIMIT) return false; // blocked
+  entry.count++;
+  return true; // allowed
+}
+
+
 // POST /api/generate
 // Flow:
 // 1. Kiểm tra auth + credits (đủ không?)
@@ -21,6 +39,14 @@ export async function POST(req: NextRequest) {
     // STAFF và ADMIN đều được miễn credit
     const isAdmin = hasMinRole(role, "STAFF");
 
+    // Rate limit: chỉ áp dụng cho USER thường (STAFF/ADMIN bỏ qua)
+    if (!isAdmin && !checkRateLimit(userId)) {
+      return NextResponse.json(
+        { error: "Bạn đang tạo ảnh quá nhanh. Vui lòng chờ 1 phút trước khi thử lại." },
+        { status: 429 }
+      );
+    }
+
     // 2. Parse form
     const formData = await req.formData();
     const featureSlug = formData.get("featureSlug") as string;
@@ -36,6 +62,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tính năng không tồn tại" }, { status: 404 });
     }
 
+    // Server-side file validation
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (image) {
+      if (image.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: "File ảnh quá lớn. Tối đa 10MB." }, { status: 400 });
+      }
+      if (!image.type.startsWith("image/")) {
+        return NextResponse.json({ error: "Chỉ được phép upload file ảnh (JPEG, PNG, WebP, v.v.)" }, { status: 400 });
+      }
+    }
+    if (image2) {
+      if (image2.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: "File ảnh 2 quá lớn. Tối đa 10MB." }, { status: 400 });
+      }
+      if (!image2.type.startsWith("image/")) {
+        return NextResponse.json({ error: "File ảnh 2 không hợp lệ." }, { status: 400 });
+      }
+    }
+
+    // Kiểm tra imageCount required
     if (featureParams.imageCount > 0 && !image) {
       return NextResponse.json({ error: "Vui lòng đính kèm ảnh gốc" }, { status: 400 });
     }

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   images: {
@@ -17,4 +18,13 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Silent source map uploads in CI/CD
+  silent: true,
+  // Source maps: only upload in production
+  sourcemaps: {
+    disable: process.env.NODE_ENV !== "production",
+  },
+});
+
+

@@ -198,7 +198,8 @@ export function BlogFormDialog({ open, onOpenChange, blog }: BlogFormDialogProps
   });
 
   const form = useForm<BlogFormValues>({
-    resolver: zodResolver(blogFormSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(blogFormSchema) as any,
     defaultValues: {
       title: "", slug: "", excerpt: "", content: "",
       coverImage: "", published: false,
