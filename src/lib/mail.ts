@@ -66,7 +66,7 @@ export async function sendVerificationEmail(email: string, token: string) {
           <table cellpadding="0" cellspacing="0" style="margin:32px auto;">
             <tr><td align="center" style="border-radius:10px;background:linear-gradient(135deg,#6366f1,#7c3aed);box-shadow:0 6px 20px rgba(99,102,241,0.45);">
               <a href="${verifyUrl}" style="display:inline-block;padding:16px 52px;color:#fff;font-size:16px;font-weight:700;text-decoration:none;border-radius:10px;letter-spacing:0.3px;">
-                ✅ Xác nhận Email ngay
+                Xác nhận Email ngay
               </a>
             </td></tr>
           </table>
@@ -315,7 +315,7 @@ export async function sendResetPasswordEmail(email: string, token: string) {
           <table cellpadding="0" cellspacing="0" style="margin:32px auto;">
             <tr><td align="center" style="border-radius:10px;background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 6px 20px rgba(220,38,38,0.45);">
               <a href="${resetUrl}" style="display:inline-block;padding:16px 52px;color:#fff;font-size:16px;font-weight:700;text-decoration:none;border-radius:10px;letter-spacing:0.3px;">
-                🔐 Đặt lại mật khẩu
+                 Đặt lại mật khẩu
               </a>
             </td></tr>
           </table>

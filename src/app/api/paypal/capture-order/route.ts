@@ -140,16 +140,20 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
-    console.log(`[capture-order] ✅ Thành công: userId=${userId} plan=${planId} credits+=${creditsToAdd} expiresAt=${newExpiresAt.toISOString()}`);
+    console.log(`[capture-order] Thành công: userId=${userId} plan=${planId} credits+=${creditsToAdd} expiresAt=${newExpiresAt.toISOString()}`);
 
     // Gửi email thông báo
-    if (currentUser?.email) {
+    // Ưu tiên email từ DB, fallback về session.user.email (quan trọng với Google OAuth)
+    const emailToNotify = currentUser?.email ?? session.user?.email;
+    if (emailToNotify) {
       await sendPackageUpgradeEmail(
-        currentUser.email,
-        plan.planKey || planId, // planKey thường là tên gói như starter, pro, max
+        emailToNotify,
+        plan.planKey || planId,
         "30 ngày",
         newExpiresAt
       ).catch(err => console.error("[capture-order] Gửi email lỗi:", err));
+    } else {
+      console.warn("[capture-order] Không có email để gửi thông báo, userId:", userId);
     }
 
     return NextResponse.json({
