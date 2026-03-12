@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PAYPAL_PLANS } from "../create-order/route";
 import { sendPackageUpgradeEmail } from "@/lib/mail";
+import { sendDiscordPaymentNotification } from "@/lib/discord";
 
 async function getPayPalAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID!;
@@ -152,6 +153,17 @@ export async function POST(req: NextRequest) {
         "30 ngày",
         newExpiresAt
       ).catch(err => console.error("[capture-order] Gửi email lỗi:", err));
+      
+      // Notify Discord
+      await sendDiscordPaymentNotification({
+        email: emailToNotify,
+        username: currentUser?.name ?? session.user?.name ?? "Unknown User",
+        planName: plan.planKey || planId,
+        credits: creditsToAdd,
+        amountUSD: parseFloat(plan.amountUSD),
+        purchaseDate: now,
+        expirationDate: newExpiresAt,
+      }).catch(err => console.error("[capture-order] Gửi Discord lỗi:", err));
     } else {
       console.warn("[capture-order] Không có email để gửi thông báo, userId:", userId);
     }
