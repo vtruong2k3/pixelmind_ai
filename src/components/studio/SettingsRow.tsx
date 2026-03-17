@@ -193,3 +193,29 @@ export function ImageSettingsRow(props: ImageSettingsRowProps) {
     </div>
   );
 }
+
+/* ── AI Video Editor Settings (2 dropdowns only) ── */
+const VIDEO_EDITOR_VERSION_OPTIONS: DropdownOption[] = [
+  { value: "v1", label: "V1.0" },
+];
+
+const VIDEO_EDITOR_RESOLUTION_OPTIONS: DropdownOption[] = [
+  { value: "720", label: "720P" },
+  { value: "1080", label: "1080P", badge: "Pro" },
+];
+
+interface VideoEditorSettingsRowProps {
+  version: string;
+  resolution: string;
+  onVersionChange: (v: string) => void;
+  onResolutionChange: (v: string) => void;
+}
+
+export function VideoEditorSettingsRow(props: VideoEditorSettingsRowProps) {
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      <StudioSelect options={VIDEO_EDITOR_VERSION_OPTIONS} value={props.version} onChange={props.onVersionChange} />
+      <StudioSelect options={VIDEO_EDITOR_RESOLUTION_OPTIONS} value={props.resolution} onChange={props.onResolutionChange} />
+    </div>
+  );
+}

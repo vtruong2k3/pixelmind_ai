@@ -7,93 +7,110 @@ import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { Check, Zap, Sparkles, Crown, Star, Calendar, RefreshCw } from "lucide-react";
 import PaymentResultDialog, { PaymentDialogState } from "@/components/pricing/PaymentResultDialog";
 
+/* ── Plan Data ── */
 const PLANS = [
   {
     id: "starter",
     name: "Starter",
+    desc: "Dành cho người mới bắt đầu khám phá AI video & image",
     icon: Zap,
-    priceUSD: "$24",
-    priceLabel: "$24 / tháng",
+    priceMonthly: 24,
+    priceYearly: 17,      // price/mo when billed yearly
+    yearlyTotal: 204,      // billed annually
+    originalMonthly: 24,   // for strikethrough
     credits: 500,
-    perCredit: "~$0.048/credit",
-    cardBg:       "#faf8ff",
-    cardBorder:   "#e9e3f9",
-    iconBg:       "#ede9fe",
-    iconColor:    "#7c3aed",
-    accentBg:     "#f3f0ff",
-    accentBorder: "#ddd5f9",
-    accentColor:  "#6d28d9",
-    checkBg:      "#ede9fe",
-    checkColor:   "#7c3aed",
-    priceColor:   "#0a0a0a",
-    badgeBg:      null as string | null,
-    badge:        null as string | null,
-    highlight:    false,
-    features: [
-      "500 credits / tháng",
-      "Tất cả 10 công cụ AI",
-      "Chất lượng SD",
-      "Lưu lịch sử",
-      "Hỗ trợ qua email",
-    ],
+    highlight: false,
+    badge: null as string | null,
+    features: {
+      credits: [
+        { text: "500 Credits /tháng", bold: true },
+        "Khoảng 100 video hoặc 250 ảnh",
+        "Mua thêm Credit Packs khi cần",
+      ],
+      features: [
+        "Các mô hình Video chất lượng cao",
+        "Image & Text-to-Video",
+        { text: "720P", highlight: true, rest: " Output" },
+        "100+ AI Video Templates & Effects",
+        "Cross-Video Character Consistency",
+        "AI Video Ads, AI Avatar, AI Music",
+        "Fast Generation Mode",
+      ],
+      benefits: [
+        "Private Creation",
+        "No Watermarks",
+        "Full Commercial Use",
+      ],
+    },
   },
   {
     id: "pro",
     name: "Pro",
+    desc: "Cho content creator và doanh nghiệp chuyên nghiệp",
     icon: Sparkles,
-    priceUSD: "$66",
-    priceLabel: "$66 / tháng",
+    priceMonthly: 66,
+    priceYearly: 47,
+    yearlyTotal: 564,
+    originalMonthly: 66,
     credits: 1500,
-    perCredit: "~$0.044/credit",
-    cardBg:       "linear-gradient(145deg, #7c3aed 0%, #4f46e5 100%)",
-    cardBorder:   "rgba(255,255,255,0.15)",
-    iconBg:       "rgba(255,255,255,0.18)",
-    iconColor:    "#fff",
-    accentBg:     "rgba(255,255,255,0.12)",
-    accentBorder: "rgba(255,255,255,0.2)",
-    accentColor:  "#fff",
-    checkBg:      "rgba(255,255,255,0.2)",
-    checkColor:   "#fff",
-    priceColor:   "#fff",
-    badgeBg:      "rgba(255,255,255,0.2)" as string | null,
-    badge:        "Phổ biến nhất" as string | null,
-    highlight:    true,
-    features: [
-      "1500 credits / tháng",
-      "Tất cả 10 công cụ AI",
-      "Chất lượng SD + HD",
-      "Ưu tiên xử lý",
-      "Hỗ trợ ưu tiên",
-    ],
+    highlight: true,
+    badge: "Phổ biến nhất" as string | null,
+    features: {
+      credits: [
+        { text: "1,500 Credits /tháng", bold: true },
+        "Khoảng 300 video hoặc 750 ảnh",
+        "Mua thêm Credit Packs khi cần",
+      ],
+      features: [
+        "Các mô hình Video chất lượng cao",
+        "Image & Text-to-Video",
+        { text: "1080P", highlight: true, rest: " Output" },
+        "100+ AI Video Templates & Effects",
+        "Cross-Video Character Consistency",
+        "AI Video Ads, AI Avatar, AI Music",
+        "Fast Generation Mode",
+      ],
+      benefits: [
+        "Private Creation",
+        "No Watermarks",
+        "Full Commercial Use",
+      ],
+    },
   },
   {
     id: "max",
     name: "Max",
+    desc: "Dành cho studio & team lớn, cần tối đa credits",
     icon: Crown,
-    priceUSD: "$100",
-    priceLabel: "$100 / tháng",
+    priceMonthly: 100,
+    priceYearly: 71,
+    yearlyTotal: 852,
+    originalMonthly: 100,
     credits: 4000,
-    perCredit: "~$0.025/credit",
-    cardBg:       "#f5f3ff",
-    cardBorder:   "#ddd6fe",
-    iconBg:       "#ede9fe",
-    iconColor:    "#4f46e5",
-    accentBg:     "#ede9fe",
-    accentBorder: "#c4b5fd",
-    accentColor:  "#4f46e5",
-    checkBg:      "#ddd6fe",
-    checkColor:   "#4f46e5",
-    priceColor:   "#0a0a0a",
-    badgeBg:      "#ede9fe" as string | null,
-    badge:        "Tiết kiệm nhất" as string | null,
-    highlight:    false,
-    features: [
-      "4000 credits / tháng",
-      "Tất cả 10 công cụ AI",
-      "Chất lượng HD độc quyền",
-      "Hỗ trợ ưu tiên 24/7",
-      "API access (coming soon)",
-    ],
+    highlight: false,
+    badge: "Tiết kiệm nhất" as string | null,
+    features: {
+      credits: [
+        { text: "4,000 Credits /tháng", bold: true },
+        "Khoảng 800 video hoặc 2000 ảnh",
+        "Mua thêm Credit Packs khi cần",
+      ],
+      features: [
+        "Các mô hình Video chất lượng cao",
+        "Image & Text-to-Video",
+        { text: "1080P", highlight: true, rest: " Output" },
+        "100+ AI Video Templates & Effects",
+        "Cross-Video Character Consistency",
+        "AI Video Ads, AI Avatar, AI Music",
+        "Fast Generation Mode",
+      ],
+      benefits: [
+        "Private Creation",
+        "No Watermarks",
+        "Full Commercial Use",
+        "Priority Support",
+      ],
+    },
   },
 ];
 
@@ -101,20 +118,46 @@ const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "sb";
 
 // Badge màu theo plan
 const PLAN_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  free:    { label: "Free",    bg: "#f4f4f5", color: "#71717a" },
+  free: { label: "Free", bg: "#f4f4f5", color: "#71717a" },
   starter: { label: "Starter", bg: "#ede9fe", color: "#7c3aed" },
-  pro:     { label: "Pro",     bg: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff" },
-  max:     { label: "Max",     bg: "#1e1b4b", color: "#a5b4fc" },
+  pro: { label: "Pro", bg: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff" },
+  max: { label: "Max", bg: "#1e1b4b", color: "#a5b4fc" },
 };
 
+/* ── Feature Item Renderer ── */
+function FeatureItem({ item, isHighlightPlan }: { item: string | { text: string; bold?: boolean; highlight?: boolean; rest?: string }; isHighlightPlan: boolean }) {
+  if (typeof item === "string") {
+    return (
+      <li style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 14, color: isHighlightPlan ? "rgba(255,255,255,0.75)" : "#4b5563", lineHeight: 1.6 }}>
+        <span style={{ color: isHighlightPlan ? "rgba(255,255,255,0.4)" : "#c7c7c7", marginTop: 2 }}>•</span>
+        {item}
+      </li>
+    );
+  }
+  return (
+    <li style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 14, color: isHighlightPlan ? "rgba(255,255,255,0.75)" : "#4b5563", lineHeight: 1.6 }}>
+      <span style={{ color: isHighlightPlan ? "rgba(255,255,255,0.4)" : "#c7c7c7", marginTop: 2 }}>•</span>
+      <span>
+        {item.bold && <strong style={{ color: isHighlightPlan ? "#fff" : "#7c3aed" }}>{item.text}</strong>}
+        {item.highlight && <span style={{ color: "#7c3aed", fontWeight: 700 }}>{item.text}</span>}
+        {!item.bold && !item.highlight && item.text}
+        {item.rest && <span>{item.rest}</span>}
+      </span>
+    </li>
+  );
+}
+
+/* ── Plan Card ── */
 function PlanCard({
   plan,
+  isYearly,
   currentPlan,
   planExpiresAt,
   onSuccess,
   onPaymentState,
 }: {
   plan: typeof PLANS[0];
+  isYearly: boolean;
   currentPlan: string;
   planExpiresAt: string | null;
   onSuccess: (planId: string, expiresAt: string, creditsAdded: number, newBalance: number) => void;
@@ -123,10 +166,13 @@ function PlanCard({
   const { data: session } = useSession();
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
+  const [showPaypal, setShowPaypal] = useState(false);
   const Icon = plan.icon;
-  const isGradient = plan.cardBg.startsWith("linear");
 
-  // So sánh rank để quyết định hiện/ẩn PayPal
+  const price = isYearly ? plan.priceYearly : plan.priceMonthly;
+  const originalPrice = plan.originalMonthly;
+
+  // Plan rank
   const PLAN_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2, max: 3 };
   const myRank = PLAN_RANK[currentPlan] ?? 0;
   const planRank = PLAN_RANK[plan.id] ?? 0;
@@ -163,10 +209,10 @@ function PlanCard({
           result.newBalance ?? 0,
         );
       } else {
-        onPaymentState("error", { errorMessage: result.error ?? "Lỗi xử lý thanh toán. Vui lòng thử lại." });
+        onPaymentState("error", { errorMessage: result.error ?? "Lỗi xử lý thanh toán." });
       }
     } catch {
-      onPaymentState("error", { errorMessage: "Không thể kết nối máy chủ. Vui lòng kiểm tra mạng và thử lại." });
+      onPaymentState("error", { errorMessage: "Không thể kết nối máy chủ." });
     } finally {
       setProcessing(false);
     }
@@ -174,7 +220,7 @@ function PlanCard({
 
   const onError = (err: Record<string, unknown>) => {
     console.error(err);
-    onPaymentState("error", { errorMessage: "PayPal báo lỗi. Vui lòng thử lại hoặc dùng phương thức thanh toán khác." });
+    onPaymentState("error", { errorMessage: "PayPal báo lỗi. Vui lòng thử lại." });
   };
 
   const onCancel = () => {
@@ -192,170 +238,253 @@ function PlanCard({
   );
 
   const processingUI = (
-    <div className="w-full py-3.5 rounded-xl text-center text-sm font-semibold flex items-center justify-center gap-2"
-      style={isGradient ? { background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" } : { background: "#f4f4f5", color: "#71717a" }}>
-      <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+    <div style={{
+      width: "100%", padding: "14px 0", borderRadius: 12, textAlign: "center",
+      fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+      background: plan.highlight ? "rgba(255,255,255,0.12)" : "#f4f4f5",
+      color: plan.highlight ? "rgba(255,255,255,0.6)" : "#71717a",
+    }}>
+      <span style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
       Đang xử lý...
     </div>
   );
 
-  return (
-    <div
-      className="relative rounded-3xl flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1.5"
+  /* Subscribe button style */
+  const subscribeBtn = (
+    <button
+      onClick={() => {
+        if (!session?.user) { router.push("/login?callbackUrl=/pricing"); return; }
+        setShowPaypal(!showPaypal);
+      }}
       style={{
-        background: plan.cardBg,
-        border: `1px solid ${plan.cardBorder}`,
-        boxShadow: isActive
-          ? "0 0 0 3px #7c3aed, 0 20px 60px rgba(124,58,237,0.25)"
-          : plan.highlight
-            ? "0 20px 60px rgba(124,58,237,0.2), 0 4px 16px rgba(124,58,237,0.12)"
-            : "0 2px 12px rgba(0,0,0,0.06)",
+        width: "100%", padding: "14px 0", borderRadius: 12,
+        fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer",
+        background: plan.highlight
+          ? "rgba(255,255,255,0.2)"
+          : "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+        color: "#fff",
+        transition: "all 0.2s",
+        boxShadow: plan.highlight ? "none" : "0 4px 14px rgba(124,58,237,0.3)",
       }}
     >
+      Subscribe
+    </button>
+  );
+
+  return (
+    <div className="pricing-card" style={{
+      position: "relative",
+      borderRadius: 20,
+      display: "flex", flexDirection: "column",
+      overflow: "hidden",
+      transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)",
+      cursor: "default",
+      background: plan.highlight
+        ? "linear-gradient(145deg, #7c3aed 0%, #4f46e5 100%)"
+        : "#fff",
+      border: isActive
+        ? "2px solid #7c3aed"
+        : plan.highlight
+          ? "none"
+          : "1px solid #ebebeb",
+      boxShadow: plan.highlight
+        ? "0 16px 48px rgba(124,58,237,0.18), 0 4px 12px rgba(124,58,237,0.08)"
+        : "0 2px 16px rgba(0,0,0,0.05)",
+    }}>
       {/* Badge */}
       {plan.badge && (
-        <div
-          className="absolute top-5 right-5 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest"
-          style={isGradient
-            ? { background: "rgba(255,255,255,0.18)", color: "#fff" }
-            : { background: plan.accentBg, color: plan.accentColor, border: `1px solid ${plan.accentBorder}` }
-          }
-        >
+        <div style={{
+          position: "absolute", top: 16, right: 16,
+          display: "flex", alignItems: "center", gap: 4,
+          padding: "4px 10px", borderRadius: 20,
+          fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
+          background: plan.highlight ? "rgba(255,255,255,0.18)" : "#ede9fe",
+          color: plan.highlight ? "#fff" : "#7c3aed",
+          border: plan.highlight ? "none" : "1px solid #ddd6fe",
+        }}>
           <Star size={8} fill="currentColor" /> {plan.badge}
         </div>
       )}
 
-      {/* Current plan indicator */}
-      {isActive && (
-        <div className="absolute top-0 left-0 right-0 py-1.5 text-center text-white text-[10px] font-black uppercase tracking-widest"
-          style={{ background: "linear-gradient(90deg,#7c3aed,#4f46e5)" }}>
-          ✦ GÓI CỦA BẠN
-        </div>
-      )}
-
-      <div className={`p-7 flex flex-col gap-5 h-full ${isActive ? "pt-10" : ""}`}>
-        {/* Icon + Name */}
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center"
-            style={{ background: plan.iconBg }}>
-            <Icon size={20} style={{ color: plan.iconColor }} />
+      <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20, flex: 1 }}>
+        {/* Plan name */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+            <h3 style={{ fontSize: 22, fontWeight: 800, color: plan.highlight ? "#fff" : "#111", margin: 0 }}>
+              {plan.name}
+            </h3>
+            {isActive && (
+              <span style={{
+                padding: "3px 10px", borderRadius: 20,
+                fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em",
+                background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                color: "#fff",
+              }}>
+                ✦ Gói của bạn
+              </span>
+            )}
           </div>
-          <p className="text-lg font-bold" style={{ color: plan.priceColor }}>{plan.name}</p>
+          <p style={{ fontSize: 13, color: plan.highlight ? "rgba(255,255,255,0.6)" : "#9ca3af", marginTop: 4 }}>
+            {plan.desc}
+          </p>
         </div>
 
         {/* Price */}
         <div>
-          <div className="flex items-baseline gap-2 mb-0.5">
-            <span className="text-3xl font-black tracking-tight" style={{ color: plan.priceColor, letterSpacing: "-0.04em" }}>
-              {plan.priceUSD}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <span style={{ fontSize: 40, fontWeight: 900, color: plan.highlight ? "#fff" : "#111", letterSpacing: "-0.04em" }}>
+              ${price}
             </span>
-            <span className="text-sm" style={{ color: isGradient ? "rgba(255,255,255,0.55)" : "#9ca3af" }}>
-              / tháng
+            <span style={{ fontSize: 14, color: plan.highlight ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>
+              USD/tháng
             </span>
-          </div>
-          <p className="text-xs mono" style={{ color: isGradient ? "rgba(255,255,255,0.45)" : "#9ca3af" }}>
-            {plan.perCredit}
-          </p>
-        </div>
-
-        {/* Credits badge */}
-        <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl"
-          style={{ background: plan.accentBg, border: `1px solid ${plan.accentBorder}` }}>
-          <Zap size={15} style={{ color: plan.accentColor }} />
-          <span className="font-black mono text-sm" style={{ color: plan.accentColor }}>
-            {plan.credits.toLocaleString()} credits
-          </span>
-          <span className="ml-auto text-xs" style={{ color: isGradient ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>
-            / tháng
-          </span>
-        </div>
-
-        {/* Expiry date if current plan */}
-        {isActive && planExpiresAt && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-            style={{ background: isGradient ? "rgba(255,255,255,0.1)" : "#f0fdf4", border: isGradient ? "1px solid rgba(255,255,255,0.15)" : "1px solid #bbf7d0" }}>
-            <Calendar size={13} style={{ color: isGradient ? "#86efac" : "#16a34a" }} />
-            <span className="text-xs font-semibold" style={{ color: isGradient ? "#86efac" : "#16a34a" }}>
-              Hết hạn: {new Date(planExpiresAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
-            </span>
-          </div>
-        )}
-
-        {/* Features */}
-        <ul className="flex flex-col gap-2 flex-1">
-          {plan.features.map(f => (
-            <li key={f} className="flex items-center gap-2.5">
-              <div className="w-5 h-5 shrink-0 rounded-full flex items-center justify-center"
-                style={{ background: plan.checkBg }}>
-                <Check size={11} style={{ color: plan.checkColor }} />
-              </div>
-              <span className="text-sm" style={{ color: isGradient ? "rgba(255,255,255,0.75)" : "#374151" }}>
-                {f}
+            {isYearly && originalPrice > price && (
+              <span style={{ fontSize: 16, color: plan.highlight ? "rgba(255,255,255,0.35)" : "#d1d5db", textDecoration: "line-through" }}>
+                ${originalPrice}
               </span>
-            </li>
-          ))}
-        </ul>
+            )}
+          </div>
+          {isYearly && (
+            <p style={{ fontSize: 12, color: plan.highlight ? "rgba(255,255,255,0.45)" : "#7c3aed", marginTop: 4, fontWeight: 600 }}>
+              ${plan.yearlyTotal} USD thanh toán hàng năm
+            </p>
+          )}
+        </div>
 
-        {/* PayPal / Action */}
-        <div className="mt-3">
+        {/* CTA Button */}
+        <div>
           {isActive ? (
-            // ── Gói đang dùng: chỉ hiện Gia hạn ──
             <div>
               {processing ? processingUI : (
                 <>
-                  <p className="text-center text-[11px] mb-2 font-semibold"
-                    style={{ color: isGradient ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>
-                    <RefreshCw size={10} className="inline mr-1" />Gia hạn thêm 30 ngày
-                  </p>
-                  {paypalButtons}
+                  {!showPaypal ? (
+                    <button
+                      onClick={() => setShowPaypal(true)}
+                      style={{
+                        width: "100%", padding: "14px 0", borderRadius: 12,
+                        fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer",
+                        background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+                        color: "#fff", boxShadow: "0 4px 14px rgba(124,58,237,0.3)",
+                      }}
+                    >
+                      Gia hạn
+                    </button>
+                  ) : (
+                    <div>
+                      <p style={{ textAlign: "center", fontSize: 11, marginBottom: 8, fontWeight: 600, color: plan.highlight ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>
+                        <RefreshCw size={10} style={{ display: "inline", marginRight: 4 }} />Chọn phương thức thanh toán
+                      </p>
+                      {paypalButtons}
+                      <button onClick={() => setShowPaypal(false)}
+                        style={{ width: "100%", padding: "8px 0", background: "transparent", border: "none", color: plan.highlight ? "rgba(255,255,255,0.4)" : "#9ca3af", fontSize: 12, cursor: "pointer", marginTop: 4 }}>
+                        ← Quay lại
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
           ) : isDowngrade ? (
-            // ── Gói thấp hơn: ẩn hoàn toàn, hiện badge ──
-            <div className="w-full py-3.5 rounded-xl text-center text-sm font-semibold"
-              style={{ background: "#f4f4f5", color: "#d1d5db" }}>
+            <div style={{
+              width: "100%", padding: "14px 0", borderRadius: 12, textAlign: "center",
+              fontSize: 14, fontWeight: 600,
+              background: "#f4f4f5", color: "#d1d5db",
+            }}>
               Gói thấp hơn gói hiện tại
             </div>
-          ) : isUpgrade ? (
-            // ── Gói cao hơn: hiện Nâng cấp + PayPal ──
+          ) : (
             <div>
               {processing ? processingUI : (
-                <>
-                  <p className="text-center text-[11px] mb-2 font-semibold"
-                    style={{ color: isGradient ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>
-                    ↑ Nâng cấp lên {plan.name}
-                  </p>
-                  {paypalButtons}
-                </>
+                !showPaypal ? subscribeBtn : (
+                  <div>
+                    <p style={{ textAlign: "center", fontSize: 11, marginBottom: 8, fontWeight: 600, color: plan.highlight ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>
+                      Chọn phương thức thanh toán
+                    </p>
+                    {paypalButtons}
+                    <button onClick={() => setShowPaypal(false)}
+                      style={{ width: "100%", padding: "8px 0", background: "transparent", border: "none", color: plan.highlight ? "rgba(255,255,255,0.4)" : "#9ca3af", fontSize: 12, cursor: "pointer", marginTop: 4 }}>
+                      ← Quay lại
+                    </button>
+                  </div>
+                )
               )}
             </div>
-          ) : (
-            // ── Free user hoặc gói hết hạn: hiện PayPal mua mới ──
-            processing ? processingUI : paypalButtons
           )}
         </div>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: plan.highlight ? "rgba(255,255,255,0.12)" : "#f0f0f0" }} />
+
+        {/* CREDITS section */}
+        <div>
+          <h4 style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: plan.highlight ? "rgba(255,255,255,0.6)" : "#7c3aed", marginBottom: 10 }}>
+            CREDITS
+          </h4>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            {plan.features.credits.map((item, i) => (
+              <FeatureItem key={i} item={item} isHighlightPlan={plan.highlight} />
+            ))}
+          </ul>
+        </div>
+
+        {/* FEATURES section */}
+        <div>
+          <h4 style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: plan.highlight ? "rgba(255,255,255,0.6)" : "#7c3aed", marginBottom: 10 }}>
+            FEATURES
+          </h4>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            {plan.features.features.map((item, i) => (
+              <FeatureItem key={i} item={item} isHighlightPlan={plan.highlight} />
+            ))}
+          </ul>
+        </div>
+
+        {/* BENEFITS section */}
+        <div>
+          <h4 style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: plan.highlight ? "rgba(255,255,255,0.6)" : "#7c3aed", marginBottom: 10 }}>
+            BENEFITS
+          </h4>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            {plan.features.benefits.map((item, i) => (
+              <FeatureItem key={i} item={item} isHighlightPlan={plan.highlight} />
+            ))}
+          </ul>
+        </div>
+
+        {/* Expiry if active */}
+        {isActive && planExpiresAt && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "10px 14px", borderRadius: 12,
+            background: plan.highlight ? "rgba(255,255,255,0.1)" : "#f0fdf4",
+            border: plan.highlight ? "1px solid rgba(255,255,255,0.15)" : "1px solid #bbf7d0",
+          }}>
+            <Calendar size={13} style={{ color: plan.highlight ? "#86efac" : "#16a34a" }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: plan.highlight ? "#86efac" : "#16a34a" }}>
+              Hết hạn: {new Date(planExpiresAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+/* ── Main Page ── */
 export default function PricingPage() {
   const { data: session, update: updateSession } = useSession();
   const user = session?.user as any;
+  const [isYearly, setIsYearly] = useState(true);
 
-  // localPlan: cập nhật ngay sau khi mua, không cần đợi session refresh
   const [localPlan, setLocalPlan] = useState<string | null>(null);
   const [localExpiresAt, setLocalExpiresAt] = useState<string | null>(null);
 
-  // Dialog state
   const [dialogState, setDialogState] = useState<PaymentDialogState>("idle");
   const [dialogPlan, setDialogPlan] = useState<string | undefined>();
   const [dialogCredits, setDialogCredits] = useState<number | undefined>();
   const [dialogBalance, setDialogBalance] = useState<number | undefined>();
   const [dialogError, setDialogError] = useState<string | undefined>();
 
-  // Ưu tiên local state (mới mua) > session data (DB)
   const sessionPlan: string = user?.plan ?? "free";
   const sessionExpiresAt: string | null = user?.planExpiresAt ?? null;
   const currentPlan = localPlan ?? sessionPlan;
@@ -377,67 +506,117 @@ export default function PricingPage() {
     setDialogCredits(creditsAdded);
     setDialogBalance(newBalance);
     setDialogState("success");
-    // Refresh session ngầm
     updateSession();
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div style={{ minHeight: "100vh", background: "#fff" }}>
       <Navbar />
 
       <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: "USD", intent: "capture" }}>
-        <div className="max-w-5xl mx-auto px-6 py-20">
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px 60px" }}>
 
-          {/* Header */}
-          <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 mono"
-              style={{ background: "#ede9fe", color: "#7c3aed", border: "1px solid #ddd6fe" }}>
-              <Zap size={11} /> Gói Tháng · Monthly Plans
-            </div>
-            <h1 className="font-black text-gray-900 mb-4"
-              style={{ fontSize: "clamp(36px,6vw,58px)", letterSpacing: "-0.04em", lineHeight: 1.1 }}>
-              Chọn gói{" "}
+          {/* ── Header ── */}
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <h1 style={{
+              fontSize: "clamp(32px, 5vw, 48px)",
+              fontWeight: 900, color: "#111", letterSpacing: "-0.04em", lineHeight: 1.1,
+              marginBottom: 16,
+            }}>
+              Best AI Video &{" "}
               <span style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                phù hợp
+                Image Generator
               </span>
             </h1>
-            <p className="text-lg text-gray-400 max-w-md mx-auto">
-              Thanh toán theo tháng. Credits cộng ngay sau khi thanh toán.
+            <p style={{ fontSize: 16, color: "#9ca3af", maxWidth: 500, margin: "0 auto 32px" }}>
+              Thanh toán linh hoạt. Credits cộng ngay sau khi thanh toán thành công.
             </p>
+
+            {/* ── Yearly / Monthly Toggle ── */}
+            <div style={{
+              display: "inline-flex", alignItems: "center",
+              padding: 4, borderRadius: 50,
+              background: "#f4f4f5", border: "1px solid #e5e7eb",
+            }}>
+              <button
+                onClick={() => setIsYearly(true)}
+                style={{
+                  padding: "10px 24px", borderRadius: 50,
+                  fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer",
+                  transition: "all 0.2s",
+                  background: isYearly ? "#111" : "transparent",
+                  color: isYearly ? "#fff" : "#9ca3af",
+                }}
+              >
+                Yearly
+                {isYearly && (
+                  <span style={{
+                    marginLeft: 8, padding: "2px 8px", borderRadius: 20,
+                    fontSize: 10, fontWeight: 800,
+                    background: "#7c3aed", color: "#fff",
+                  }}>
+                    29% off
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setIsYearly(false)}
+                style={{
+                  padding: "10px 24px", borderRadius: 50,
+                  fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer",
+                  transition: "all 0.2s",
+                  background: !isYearly ? "#111" : "transparent",
+                  color: !isYearly ? "#fff" : "#9ca3af",
+                }}
+              >
+                Monthly
+              </button>
+            </div>
           </div>
 
-          {/* Current plan status */}
+          {/* ── Current plan status ── */}
           {session?.user && (
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full"
-                style={{ background: "#f4f4f5", border: "1px solid #e4e4e7" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 12, marginBottom: 40 }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 16px", borderRadius: 50,
+                background: "#f4f4f5", border: "1px solid #e4e4e7",
+              }}>
                 <Zap size={13} style={{ color: "#7c3aed" }} />
-                <span className="text-sm text-gray-500">Credits hiện tại:</span>
-                <span className="text-sm font-black mono" style={{ color: "#7c3aed" }}>{user?.credits ?? 0}</span>
+                <span style={{ fontSize: 14, color: "#6b7280" }}>Credits:</span>
+                <span style={{ fontSize: 14, fontWeight: 900, color: "#7c3aed", fontFamily: "monospace" }}>{user?.credits ?? 0}</span>
               </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full"
-                style={{ background: badge.bg, border: "1px solid rgba(0,0,0,0.06)" }}>
-                <span className="text-sm font-black" style={{ color: badge.color }}>
-                  Gói hiện tại: {badge.label}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 16px", borderRadius: 50,
+                background: badge.bg, border: "1px solid rgba(0,0,0,0.06)",
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 900, color: badge.color }}>
+                  Gói: {badge.label}
                 </span>
                 {planExpiresAt && !isExpired && (
-                  <span className="text-xs opacity-70" style={{ color: badge.color }}>
+                  <span style={{ fontSize: 12, opacity: 0.7, color: badge.color }}>
                     · HSD: {new Date(planExpiresAt).toLocaleDateString("vi-VN")}
                   </span>
                 )}
                 {isExpired && currentPlan !== "free" && (
-                  <span className="text-xs text-red-400 font-semibold">· Đã hết hạn</span>
+                  <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 600 }}>· Đã hết hạn</span>
                 )}
               </div>
             </div>
           )}
 
-          {/* Plan cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          {/* ── Plan Cards Grid ── */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: 24, alignItems: "stretch",
+          }}>
             {PLANS.map(plan => (
               <PlanCard
                 key={plan.id}
                 plan={plan}
+                isYearly={isYearly}
                 currentPlan={effectivePlan}
                 planExpiresAt={planExpiresAt}
                 onSuccess={handleSuccess}
@@ -446,28 +625,59 @@ export default function PricingPage() {
             ))}
           </div>
 
-          {/* Info */}
-          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* ── Trust badges ── */}
+          <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
             {[
               { icon: "🔒", title: "Thanh toán an toàn", desc: "Powered by PayPal — không lưu thẻ" },
               { icon: "⚡", title: "Credits ngay lập tức", desc: "Cộng vào tài khoản sau thanh toán" },
-              { icon: "📅", title: "Thanh toán theo tháng", desc: "Không tự động gia hạn — toàn quyền kiểm soát" },
+              { icon: "📅", title: "Không tự động gia hạn", desc: "Toàn quyền kiểm soát chi phí" },
             ].map(item => (
-              <div key={item.title} className="p-5 rounded-2xl text-center border border-gray-100 bg-gray-50">
-                <div className="text-2xl mb-2">{item.icon}</div>
-                <p className="text-sm font-bold text-gray-800 mb-1">{item.title}</p>
-                <p className="text-xs text-gray-400">{item.desc}</p>
+              <div key={item.title} style={{
+                padding: 20, borderRadius: 16, textAlign: "center",
+                border: "1px solid #f0f0f0", background: "#fafafa",
+              }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>{item.icon}</div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#111", marginBottom: 4 }}>{item.title}</p>
+                <p style={{ fontSize: 12, color: "#9ca3af" }}>{item.desc}</p>
               </div>
             ))}
           </div>
 
-          <p className="text-center text-xs mono text-gray-300 mt-10">
+          {/* ── FAQ Section ── */}
+          <div style={{ maxWidth: 900, margin: "64px auto 0" }}>
+            <h2 style={{ textAlign: "center", fontSize: 50, fontWeight: 700, color: "#111", marginBottom: 32 }}>
+              FAQ
+            </h2>
+            {[
+              { q: "Credits là gì và cách sử dụng?", a: "Credits là đơn vị dùng để tạo video/ảnh AI. Mỗi tác vụ tiêu thụ số credits khác nhau." },
+              { q: "Tôi có thể dùng thử trước khi mua không?", a: "Có! Đăng ký miễn phí để nhận credits dùng thử các công cụ AI." },
+              { q: "Có thể mua 1 tháng không tự động gia hạn?", a: "Có. Chúng tôi không tự động gia hạn — bạn toàn quyền kiểm soát." },
+              { q: "Video có watermark không?", a: "Các gói trả phí đều không có watermark và có quyền sử dụng thương mại." },
+              { q: "Hết credits thì sao?", a: "Bạn có thể mua thêm Credit Packs bất cứ lúc nào mà không cần nâng gói." },
+            ].map((faq, i) => (
+              <details key={i} style={{
+                borderBottom: "1px solid #f0f0f0", padding: "16px 0",
+              }}>
+                <summary style={{
+                  fontSize: 15, fontWeight: 600, color: "#333", cursor: "pointer",
+                  listStyle: "none", display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
+                  {faq.q}
+                  <span style={{ color: "#d1d5db", fontSize: 20, fontWeight: 300 }}>+</span>
+                </summary>
+                <p style={{ fontSize: 14, color: "#6b7280", marginTop: 8, lineHeight: 1.7 }}>
+                  {faq.a}
+                </p>
+              </details>
+            ))}
+          </div>
+
+          <p style={{ textAlign: "center", fontSize: 12, color: "#d1d5db", marginTop: 40, fontFamily: "monospace" }}>
             Powered by PayPal · SSL Secured · Không tự động gia hạn
           </p>
         </div>
       </PayPalScriptProvider>
 
-      {/* ── Payment Result Dialog ── */}
       <PaymentResultDialog
         state={dialogState}
         planName={dialogPlan}
@@ -477,6 +687,13 @@ export default function PricingPage() {
         onClose={() => setDialogState("idle")}
         onRetry={() => setDialogState("idle")}
       />
+
+      <style>{`
+        .pricing-card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 20px 50px rgba(124,58,237,0.15), 0 8px 20px rgba(0,0,0,0.08) !important;
+        }
+      `}</style>
     </div>
   );
 }

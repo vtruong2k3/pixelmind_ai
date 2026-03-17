@@ -1,38 +1,46 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Download, Globe, Lock, Zap, Sparkles, Trash2, RefreshCw, Link2 } from "lucide-react";
+import { Download, Globe, Lock, Zap, Sparkles, RefreshCw, Link2, FolderPlus, CheckSquare, Upload, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { userService, type HistoryItem } from "@/services/userService";
 
-const FEATURE_CATEGORY_MAP: Record<string, string> = {
-  swap_shirt: "fashion", swap_swimsuit: "fashion", insert_object: "fashion",
-  swap_face: "fashion", change_color: "fashion", extract_clothing: "fashion",
-  to_anime: "creative", drawing_to_photo: "creative",
-  swap_background: "photo_edit", restore_photo: "photo_edit",
-};
-
-const CATEGORIES = [
-  { id: "all",        label: "Tất cả"     },
-  { id: "fashion",    label: "Thời trang" },
-  { id: "creative",   label: "Sáng tạo"  },
-  { id: "photo_edit", label: "Chỉnh sửa" },
+/* ── Top-level Tabs ── */
+const TOP_TABS = [
+  { id: "media",   label: "Media" },
+  { id: "avatar",  label: "Avatar" },
+  { id: "voice",   label: "Voice" },
+  { id: "project", label: "Project" },
 ];
 
-const PLACEHOLDER_GRADIENTS = [
-  "linear-gradient(135deg,#1a0a2a,#2a0a3a)",
-  "linear-gradient(135deg,#0a1628,#1a2a3a)",
-  "linear-gradient(135deg,#0a2a1a,#0a3020)",
-  "linear-gradient(135deg,#2a1a0a,#3a2010)",
+/* ── Media Filter Tabs ── */
+const MEDIA_FILTERS = [
+  { id: "all",     label: "All" },
+  { id: "video",   label: "Video" },
+  { id: "image",   label: "Image" },
+  { id: "music",   label: "Music" },
+  { id: "speech",  label: "Speech" },
 ];
+
+function groupByDate(items: HistoryItem[]) {
+  const groups: Record<string, HistoryItem[]> = {};
+  for (const item of items) {
+    const d = new Date(item.createdAt);
+    const key = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}, ${d.getFullYear()}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(item);
+  }
+  return Object.entries(groups);
+}
 
 export default function HistoryPage() {
-  const [filter, setFilter] = useState("all");
+  const [topTab, setTopTab] = useState("media");
+  const [mediaFilter, setMediaFilter] = useState("all");
+  const [selectMode, setSelectMode] = useState(false);
   const qc = useQueryClient();
 
-  // ── Infinite query ─────────────────────────────────────────────────────────
   const {
     data,
     isLoading,
@@ -49,14 +57,19 @@ export default function HistoryPage() {
     staleTime: 60_000,
   });
 
-  // Flatten pages → một mảng items
   const items: HistoryItem[] = data?.pages.flatMap(p => p.jobs) ?? [];
 
-  const filtered = filter === "all"
+  // Simple filter by media type (expand logic as needed)
+  const filtered = mediaFilter === "all"
     ? items
-    : items.filter(i => FEATURE_CATEGORY_MAP[i.featureSlug] === filter);
+    : items.filter(i => {
+        if (mediaFilter === "image") return true; // all current items are images
+        return false;
+      });
 
-  // ── Toggle public/private (optimistic update) ──────────────────────────────
+  const dateGroups = useMemo(() => groupByDate(filtered), [filtered]);
+
+  // Toggle public/private
   const toggleMut = useMutation({
     mutationFn: async (item: HistoryItem) => {
       const res = await fetch("/api/history", {
@@ -68,7 +81,6 @@ export default function HistoryPage() {
       return { id: item.id, newPublic: !item.isPublic };
     },
     onMutate: async (item) => {
-      // Optimistic: cập nhật ngay trong cache
       await qc.cancelQueries({ queryKey: ["user-history"] });
       const prev = qc.getQueryData(["user-history"]);
       qc.setQueryData(["user-history"], (old: any) => ({
@@ -83,7 +95,7 @@ export default function HistoryPage() {
       return { prev };
     },
     onError: (_err, _item, ctx) => {
-      qc.setQueryData(["user-history"], ctx?.prev); // rollback
+      qc.setQueryData(["user-history"], ctx?.prev);
       toast.error("Không thể cập nhật trạng thái");
     },
     onSuccess: ({ newPublic }) => {
@@ -92,173 +104,289 @@ export default function HistoryPage() {
   });
 
   return (
-    <div className="min-h-screen bg-white">
+    <div style={{ minHeight: "100vh", background: "#fff" }}>
       <Navbar />
 
-      <div className="max-w-[1400px] mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
-          <div>
-            <p className="mono text-xs text-gray-400 uppercase tracking-widest mb-3">Tài khoản · Lịch sử</p>
-            <h1 className="text-4xl font-bold text-gray-900 tracking-tight" style={{ letterSpacing: "-0.03em" }}>
-              Lịch sử tạo ảnh
-            </h1>
-          </div>
-          <Link href="/studio"
-            className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-semibold text-white shrink-0"
-            style={{ background: "var(--cta-gradient)", boxShadow: "0 4px 16px rgba(124,58,237,0.3)" }}>
-            <Sparkles size={15} /> Tạo ảnh mới
-          </Link>
-        </div>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 24px" }}>
 
-        {/* Filter */}
-        <div className="flex items-center gap-2 mb-8 flex-wrap">
-          {CATEGORIES.map(cat => (
-            <button key={cat.id} onClick={() => setFilter(cat.id)}
-              className="px-4 py-2 rounded-full text-sm font-semibold transition-all"
-              style={filter === cat.id
-                ? { background: "#0a0a0a", color: "#fff" }
-                : { background: "#f4f4f5", color: "#71717a" }}>
-              {cat.label}
+        {/* ── Top Tabs ── */}
+        <div style={{ display: "flex", gap: 24, borderBottom: "1px solid #f0f0f0", marginBottom: 32 }}>
+          {TOP_TABS.map(tab => (
+            <button key={tab.id} onClick={() => setTopTab(tab.id)}
+              style={{
+                padding: "12px 0", fontSize: 15, fontWeight: 600, border: "none",
+                background: "transparent", cursor: "pointer",
+                color: topTab === tab.id ? "#7c3aed" : "#9ca3af",
+                borderBottom: topTab === tab.id ? "2px solid #7c3aed" : "2px solid transparent",
+                transition: "all 0.15s",
+                marginBottom: -1,
+              }}
+            >
+              {tab.label}
             </button>
           ))}
-          <button onClick={() => refetch()}
-            className="ml-auto p-2 rounded-lg border text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
-            style={{ border: "1px solid #e4e4e7" }} title="Làm mới">
-            <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
-          </button>
         </div>
 
-        {/* Skeleton */}
+        {/* ── Folders Section ── */}
+        <div style={{ marginBottom: 32 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: "#111", marginBottom: 16 }}>Folders</h3>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <button style={{
+              width: 140, height: 120, borderRadius: 12,
+              border: "1px dashed #d1d5db",
+              background: "#fafafa",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              gap: 8, cursor: "pointer", transition: "all 0.15s",
+              color: "#9ca3af",
+            }}>
+              <FolderPlus size={24} />
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Add new folder</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ── Filter Row ── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+          {/* Left: filter tabs + Type dropdown */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            {MEDIA_FILTERS.map(f => (
+              <button key={f.id} onClick={() => setMediaFilter(f.id)}
+                style={{
+                  padding: "6px 16px", borderRadius: 20,
+                  fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
+                  background: mediaFilter === f.id ? "#111" : "transparent",
+                  color: mediaFilter === f.id ? "#fff" : "#9ca3af",
+                  transition: "all 0.15s",
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+            <div style={{ marginLeft: 8 }}>
+              <button style={{
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "6px 14px", borderRadius: 8,
+                fontSize: 13, fontWeight: 600, border: "1px solid #e5e7eb",
+                background: "#fff", color: "#6b7280", cursor: "pointer",
+              }}>
+                Type <ChevronDown size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Select + Upload */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setSelectMode(!selectMode)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 16px", borderRadius: 8,
+                fontSize: 13, fontWeight: 600, border: "1px solid #e5e7eb",
+                background: selectMode ? "#f3f0ff" : "#fff",
+                color: selectMode ? "#7c3aed" : "#374151", cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              <CheckSquare size={14} /> Select
+            </button>
+            <Link href="/studio"
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 16px", borderRadius: 8,
+                fontSize: 13, fontWeight: 600, border: "1px solid #e5e7eb",
+                background: "#fff", color: "#374151", cursor: "pointer",
+                textDecoration: "none", transition: "all 0.15s",
+              }}
+            >
+              <Upload size={14} /> Upload
+            </Link>
+            <button onClick={() => refetch()}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 36, height: 36, borderRadius: 8,
+                border: "1px solid #e5e7eb", background: "#fff",
+                color: "#6b7280", cursor: "pointer",
+              }}
+              title="Làm mới"
+            >
+              <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Loading skeleton ── */}
         {isLoading && items.length === 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="rounded-2xl overflow-hidden animate-pulse" style={{ background: "#f4f4f5" }}>
-                <div className="aspect-[3/4]" />
-                <div className="p-3 flex flex-col gap-1.5">
-                  <div className="h-3 rounded bg-gray-200 w-3/4" />
-                  <div className="h-3 rounded bg-gray-200 w-1/2" />
-                </div>
-              </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} style={{
+                aspectRatio: "3/4", borderRadius: 12,
+                background: "#f4f4f5", animation: "pulse 1.5s ease-in-out infinite",
+              }} />
             ))}
           </div>
         )}
 
-        {/* Empty state */}
+        {/* ── Empty state ── */}
         {!isLoading && filtered.length === 0 && (
-          <div className="text-center py-24">
-            <div className="text-6xl mb-4">🎨</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Chưa có ảnh nào</h3>
-            <p className="text-gray-400 mb-6">Hãy tạo ảnh đầu tiên của bạn ngay bây giờ!</p>
-            <Link href="/studio" className="px-6 py-3 rounded-lg text-sm font-bold text-white inline-block"
-              style={{ background: "var(--cta-gradient)" }}>
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>🎨</div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: "#111", marginBottom: 8 }}>Chưa có ảnh nào</h3>
+            <p style={{ color: "#9ca3af", marginBottom: 24 }}>Hãy tạo ảnh đầu tiên của bạn ngay bây giờ!</p>
+            <Link href="/studio" style={{
+              padding: "12px 28px", borderRadius: 10, fontSize: 14, fontWeight: 700,
+              color: "#fff", textDecoration: "none",
+              background: "linear-gradient(135deg,#7c3aed,#6d28d9)",
+            }}>
+              <Sparkles size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
               Ghé Studio →
             </Link>
           </div>
         )}
 
-        {/* Grid */}
-        {filtered.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filtered.map((item, idx) => (
-              <div key={item.id}
-                className="group rounded-2xl overflow-hidden border transition-all hover:shadow-lg hover:-translate-y-0.5"
-                style={{ border: "1px solid #f0f0f0" }}>
-                {/* Image */}
-                <div className="relative aspect-[3/4]"
-                  style={{ background: PLACEHOLDER_GRADIENTS[idx % PLACEHOLDER_GRADIENTS.length] }}>
-                  {item.outputUrl
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={item.outputUrl} alt={item.featureName} className="w-full h-full object-cover" />
-                    : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-white/20 text-xs mono uppercase tracking-widest">
-                          {item.status === "FAILED" ? "FAILED" : "AI"}
+        {/* ── Date-grouped grid ── */}
+        {dateGroups.map(([dateLabel, groupItems]) => (
+          <div key={dateLabel} style={{ marginBottom: 32 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#9ca3af", marginBottom: 12 }}>
+              {dateLabel}
+            </p>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: 12,
+            }}>
+              {groupItems.map(item => (
+                <div key={item.id} className="group"
+                  style={{
+                    position: "relative", borderRadius: 12, overflow: "hidden",
+                    background: "#f4f4f5", cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {/* Image */}
+                  <div style={{ aspectRatio: "3/4", position: "relative" }}>
+                    {item.outputUrl
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={item.outputUrl} alt={item.featureName}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      : (
+                        <div style={{
+                          width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+                          background: "linear-gradient(135deg,#f3f0ff,#ede9fe)",
+                        }}>
+                          <span style={{ color: "#c4b5fd", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                            {item.status === "FAILED" ? "FAILED" : "AI"}
+                          </span>
+                        </div>
+                      )}
+
+                    {/* Type badge */}
+                    <div style={{
+                      position: "absolute", top: 6, left: 6,
+                      padding: "2px 8px", borderRadius: 4,
+                      fontSize: 10, fontWeight: 700,
+                      background: "rgba(0,0,0,0.5)", color: "#fff",
+                      backdropFilter: "blur(4px)",
+                    }}>
+                      Image
+                    </div>
+
+                    {/* Status badge */}
+                    {item.status !== "COMPLETED" && (
+                      <div style={{ position: "absolute", top: 6, right: 6 }}>
+                        <span style={{
+                          padding: "2px 8px", borderRadius: 4,
+                          fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                          background: item.status === "FAILED" ? "rgba(239,68,68,0.8)" : "rgba(250,204,21,0.8)",
+                          color: "#fff",
+                        }}>
+                          {item.status}
                         </span>
                       </div>
                     )}
 
-                  {/* Hover actions */}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    {item.outputUrl && (
-                      <a href={item.outputUrl} download className="p-2 rounded-lg bg-white/90 text-gray-800 hover:bg-white transition-colors" title="Tải xuống">
-                        <Download size={14} />
-                      </a>
-                    )}
-                    {item.outputUrl && (
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(item.outputUrl!).then(() => {
-                            toast.success("Đã copy link ảnh!");
-                          }).catch(() => {
-                            toast.error("Không thể copy link.");
-                          });
-                        }}
-                        className="p-2 rounded-lg bg-white/90 text-gray-800 hover:bg-white transition-colors"
-                        title="Copy link ảnh"
-                      >
-                        <Link2 size={14} />
-                      </button>
-                    )}
-                    <button onClick={() => toggleMut.mutate(item)}
-                      className="p-2 rounded-lg bg-white/90 text-gray-800 hover:bg-white transition-colors"
-                      title={item.isPublic ? "Đổi sang riêng tư" : "Chia sẻ lên Gallery"}>
-                      {item.isPublic ? <Globe size={14} /> : <Lock size={14} />}
-                    </button>
-                  </div>
-
-                  {/* Status badge */}
-                  {item.status !== "COMPLETED" && (
-                    <div className="absolute top-2 left-2">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase mono"
-                        style={item.status === "FAILED"
-                          ? { background: "rgba(239,68,68,0.15)", color: "#ef4444" }
-                          : { background: "rgba(250,204,21,0.15)", color: "#ca8a04" }}>
-                        {item.status}
+                    {/* Public indicator */}
+                    <div style={{ position: "absolute", bottom: 6, right: 6 }}>
+                      <span style={{
+                        width: 22, height: 22, borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)",
+                      }}>
+                        {item.isPublic ? <Globe size={10} color="white" /> : <Lock size={10} color="white" />}
                       </span>
                     </div>
-                  )}
 
-                  {/* Public indicator */}
-                  <div className="absolute top-2 right-2">
-                    <span className="w-6 h-6 rounded-full flex items-center justify-center"
-                      style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}>
-                      {item.isPublic ? <Globe size={11} color="white" /> : <Lock size={11} color="white" />}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Info */}
-                <div className="p-3">
-                  <p className="text-xs font-semibold text-gray-800 truncate">{item.featureName}</p>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-[10px] text-gray-400 mono">
-                      {new Date(item.createdAt).toLocaleDateString("vi-VN")}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Zap size={9} color="#a78bfa" />
-                      <span className="text-[10px] font-bold mono" style={{ color: "#a78bfa" }}>{item.creditUsed}</span>
-                      <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
-                        style={{ background: "#f4f4f5", color: "#71717a" }}>{item.quality}</span>
+                    {/* Hover overlay */}
+                    <div className="opacity-0 group-hover:opacity-100"
+                      style={{
+                        position: "absolute", inset: 0,
+                        background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        transition: "opacity 0.2s",
+                      }}
+                    >
+                      {item.outputUrl && (
+                        <a href={item.outputUrl} download
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            width: 32, height: 32, borderRadius: 8,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            background: "rgba(255,255,255,0.9)", color: "#333",
+                          }} title="Tải xuống">
+                          <Download size={14} />
+                        </a>
+                      )}
+                      {item.outputUrl && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(item.outputUrl!).then(() => {
+                              toast.success("Đã copy link ảnh!");
+                            }).catch(() => toast.error("Không thể copy link."));
+                          }}
+                          style={{
+                            width: 32, height: 32, borderRadius: 8, border: "none",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            background: "rgba(255,255,255,0.9)", color: "#333", cursor: "pointer",
+                          }} title="Copy link ảnh">
+                          <Link2 size={14} />
+                        </button>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); toggleMut.mutate(item); }}
+                        style={{
+                          width: 32, height: 32, borderRadius: 8, border: "none",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: "rgba(255,255,255,0.9)", color: "#333", cursor: "pointer",
+                        }} title={item.isPublic ? "Đổi sang riêng tư" : "Chia sẻ lên Gallery"}>
+                        {item.isPublic ? <Globe size={14} /> : <Lock size={14} />}
+                      </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        )}
+        ))}
 
         {/* Load more */}
         {hasNextPage && (
-          <div className="text-center mt-10">
+          <div style={{ textAlign: "center", marginTop: 32 }}>
             <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}
-              className="px-8 py-3 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-50"
-              style={{ background: "#f4f4f5", color: "#71717a" }}>
+              style={{
+                padding: "12px 32px", borderRadius: 10, fontSize: 14, fontWeight: 600,
+                background: "#f4f4f5", color: "#71717a", border: "none", cursor: "pointer",
+                transition: "all 0.15s",
+              }}>
               {isFetchingNextPage ? "Đang tải..." : "Xem thêm"}
             </button>
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 }

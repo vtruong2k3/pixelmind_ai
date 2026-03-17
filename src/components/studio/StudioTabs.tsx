@@ -5,7 +5,7 @@ export type StudioMode = "start_image" | "between_images" | "templates";
 const TABS: { id: StudioMode; label: string }[] = [
   { id: "start_image", label: "Start Image" },
   { id: "between_images", label: "Between Images" },
-  { id: "templates", label: "Templates" },
+  { id: "templates", label: "Reference Images" },
 ];
 
 interface StudioTabsProps {

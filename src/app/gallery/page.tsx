@@ -1,27 +1,48 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
-import { Heart, Download, Sparkles, X, Loader2, Link2, Search } from "lucide-react";
+import { Heart, Download, Sparkles, X, Loader2, Link2, Search, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { toast } from "sonner";
 
+/* ── Categories — filter by feature ── */
 const CATEGORIES = [
-  { id: "all",        label: "Tất cả"     },
-  { id: "fashion",    label: "Thời trang" },
-  { id: "creative",   label: "Sáng tạo"  },
-  { id: "photo_edit", label: "Chỉnh sửa" },
+  { id: "all", label: "Tất cả" },
+  { id: "ai_image", label: "AI Image" },
+  { id: "ai_image_editor", label: "AI Image Editor" },
+  { id: "ai_video_editor", label: "AI Video Editor" },
+  { id: "image_to_video", label: "Image to Video" },
+  { id: "text_to_video", label: "Text to Video" },
+  { id: "ai_avatar", label: "AI Avatar" },
 ];
 
-const PLACEHOLDER_GRADIENTS = [
-  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-  "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-  "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-  "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
-  "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
-  "linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)",
+/* ── Hero Banner Slides ── */
+const HERO_SLIDES = [
+  {
+    title: "AI Image Generator and Editor",
+    desc: "Tạo hình ảnh chất lượng cao từ mô tả văn bản hoặc ảnh tham chiếu. Hỗ trợ text-to-image, chỉnh sửa prompt, character consistency và nhiều hơn nữa.",
+    cta: "Try Now",
+    href: "/studio",
+    label: "Text & Image to Image",
+    emoji: "🎨",
+  },
+  {
+    title: "AI Photo Editor",
+    desc: "Chỉnh sửa ảnh thông minh với AI — đổi nền, phục hồi ảnh cũ, thay trang phục, biến đổi phong cách chỉ trong vài giây.",
+    cta: "Try Now",
+    href: "/studio",
+    label: "Swap & Transform",
+    emoji: "✨",
+  },
+  {
+    title: "Creative AI Tools",
+    desc: "Biến ảnh thành anime, vẽ từ bản phác thảo, chèn vật thể — bộ công cụ sáng tạo AI toàn diện cho mọi nhu cầu.",
+    cta: "Try Now",
+    href: "/studio",
+    label: "Drawing to Photo & More",
+    emoji: "🖌️",
+  },
 ];
 
 interface GalleryItem {
@@ -49,20 +70,119 @@ async function fetchGalleryPage({ pageParam, filter }: { pageParam?: string; fil
   const res = await fetch(`/api/gallery?${params}`);
   const data = await res.json();
   return {
-    items:   data?.items ?? [],
-    cursor:  data?.cursor,
+    items: data?.items ?? [],
+    cursor: data?.cursor,
     hasMore: !!data?.cursor,
   };
 }
 
+/* ── Hero Banner Component ── */
+function HeroBanner() {
+  const [current, setCurrent] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => setCurrent(c => (c + 1) % HERO_SLIDES.length), 5000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  const slide = HERO_SLIDES[current];
+  const prev = () => setCurrent((current - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
+  const next = () => setCurrent((current + 1) % HERO_SLIDES.length);
+
+  return (
+    <div style={{
+      position: "relative", borderRadius: 24, overflow: "hidden",
+      background: "linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%)",
+      minHeight: 420, display: "flex", alignItems: "center",
+      marginBottom: 32, border: "1px solid #e5e7eb",
+    }}>
+      {/* Left preview area — single image */}
+      <div style={{
+        width: "42%", minHeight: 420, padding: "32px 24px 32px 40px",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        position: "relative",
+      }}>
+        {/* Single large preview image */}
+        <div style={{
+          width: 520, height: 360, borderRadius: 20,
+          background: "#fff",
+          boxShadow: "0 12px 32px rgba(124,58,237,0.12)",
+          overflow: "hidden",
+          border: "3px solid rgba(255,255,255,0.95)",
+          marginTop: 16,
+        }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="https://picsum.photos/seed/pixelmind1/840/720" alt="Sample"
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        </div>
+      </div>
+
+      {/* Right text area */}
+      <div style={{ flex: 1, padding: "40px 48px 40px 16px" }}>
+        <h2 style={{
+          fontSize: 50, fontWeight: 700, color: "#111",
+          letterSpacing: "-0.03em", lineHeight: 1.2, marginBottom: 14,
+        }}>
+          {slide.title}
+        </h2>
+        <p style={{ fontSize: 16, color: "#6b7280", lineHeight: 1.7, marginBottom: 22, maxWidth: 480 }}>
+          {slide.desc}
+        </p>
+        <Link href={slide.href} style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "14px 36px", borderRadius: 50,
+          fontSize: 16, fontWeight: 700, textDecoration: "none",
+          background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+          color: "#fff",
+          boxShadow: "0 4px 16px rgba(124,58,237,0.3)",
+          transition: "all 0.2s",
+        }}>
+          {slide.cta}
+        </Link>
+      </div>
+
+      {/* Nav arrows + Dots — bottom right */}
+      <div style={{
+        position: "absolute", bottom: 16, right: 24,
+        display: "flex", gap: 6, alignItems: "center",
+      }}>
+        <button onClick={prev} style={{
+          width: 28, height: 28, borderRadius: "50%", border: "1px solid #e5e7eb",
+          background: "#fff", color: "#6b7280",
+          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+        }}>
+          <ChevronLeft size={14} />
+        </button>
+        {HERO_SLIDES.map((_, i) => (
+          <button key={i} onClick={() => setCurrent(i)} style={{
+            width: 8, height: 8,
+            borderRadius: "50%", border: "none", cursor: "pointer",
+            background: i === current ? "#7c3aed" : "rgba(124,58,237,0.2)",
+            transition: "all 0.3s",
+          }} />
+        ))}
+        <button onClick={next} style={{
+          width: 28, height: 28, borderRadius: "50%", border: "1px solid #e5e7eb",
+          background: "#fff", color: "#6b7280",
+          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+        }}>
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Gallery Page ── */
 export default function GalleryPage() {
-  // filter là local state vì nó reset toàn bộ query khi thay đổi
-  const [filter,   setFilter]   = useState("all");
-  const [search,   setSearch]   = useState("");
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
   const qc = useQueryClient();
 
-  // ── Infinite query — mỗi filter là 1 cache entry riêng ─────────────────
   const {
     data,
     isLoading,
@@ -74,16 +194,15 @@ export default function GalleryPage() {
     queryFn: ({ pageParam }) => fetchGalleryPage({ pageParam: pageParam as string | undefined, filter }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.hasMore ? last.cursor : undefined,
-    staleTime: 60_000, // cache 1 phút — quay lại trang không fetch lại
+    staleTime: 60_000,
   });
 
   const allItems: GalleryItem[] = data?.pages.flatMap(p => p.items) ?? [];
-  // Client-side search filter
   const items = search.trim()
     ? allItems.filter(i => i.featureName.toLowerCase().includes(search.trim().toLowerCase()))
     : allItems;
 
-  // ── Like/unlike với optimistic update ──────────────────────────────────
+  // Like mutation
   const likeMut = useMutation({
     mutationFn: async (item: GalleryItem) => {
       const res = await fetch("/api/gallery/like", {
@@ -97,7 +216,6 @@ export default function GalleryPage() {
     onMutate: async (item) => {
       await qc.cancelQueries({ queryKey: ["gallery", filter] });
       const prev = qc.getQueryData(["gallery", filter]);
-      // Cập nhật optimistic trong cache
       qc.setQueryData(["gallery", filter], (old: any) => ({
         ...old,
         pages: old?.pages?.map((page: any) => ({
@@ -109,7 +227,6 @@ export default function GalleryPage() {
           ),
         })),
       }));
-      // Cập nhật lightbox nếu đang mở
       if (lightbox?.id === item.id) {
         setLightbox(prev => prev ? {
           ...prev,
@@ -120,210 +237,306 @@ export default function GalleryPage() {
       return { prev };
     },
     onError: (_err, _item, ctx) => {
-      qc.setQueryData(["gallery", filter], ctx?.prev); // rollback
+      qc.setQueryData(["gallery", filter], ctx?.prev);
     },
   });
 
+  // Masonry column splitting
+  const COLUMN_COUNT = 5;
+  const columns: GalleryItem[][] = Array.from({ length: COLUMN_COUNT }, () => []);
+  items.forEach((item, i) => columns[i % COLUMN_COUNT].push(item));
+
+  // Varying aspect ratios for visual interest — taller cards
+  const getAspectRatio = (idx: number) => {
+    const ratios = ["3/4", "2/3", "3/4", "4/5", "2/3", "3/4", "4/5", "3/4"];
+    return ratios[idx % ratios.length];
+  };
+
   return (
-    <div className="min-h-screen bg-white">
+    <div style={{ minHeight: "100vh", background: "#f9fafb" }}>
       <Navbar />
 
-      <div className="max-w-[1400px] mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-          <div>
-            <p className="mono text-xs text-gray-400 uppercase tracking-widest mb-3">Cộng đồng · Gallery</p>
-            <h1 className="text-4xl font-bold text-gray-900 tracking-tight" style={{ letterSpacing: "-0.03em" }}>
-              Tác phẩm AI từ cộng đồng
-            </h1>
-            <p className="text-gray-400 mt-2 leading-relaxed">
-              Những hình ảnh tuyệt đẹp được tạo ra bởi cộng đồng PixelMind AI.<br />
-              Bạn cũng có thể tạo ảnh của mình ngay bây giờ.
-            </p>
-          </div>
-          <Link href="/studio"
-            className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-semibold text-white shrink-0 transition-all hover:opacity-90 hover:-translate-y-0.5"
-            style={{ background: "var(--cta-gradient)", boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
-            <Sparkles size={15} /> Tạo ảnh ngay
-          </Link>
-        </div>
+      <div style={{ maxWidth: 1700, margin: "0 auto", padding: "24px 24px 60px" }}>
 
-        {/* Search bar */}
-        <div className="relative mb-4">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input
-            id="gallery-search"
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Tìm kiếm theo tính năng..."
-            className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:border-violet-400 placeholder:text-gray-300 transition-all"
-          />
-          {search && (
-            <button onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <X size={14} />
-            </button>
-          )}
-        </div>
+        {/* ── Hero Banner ── */}
+        <HeroBanner />
 
-        {/* Filter chips */}
-        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-          <div className="flex gap-2 flex-wrap">
+        {/* ── Search + Filter Bar ── */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 24, flexWrap: "wrap", gap: 12,
+        }}>
+          {/* Left: filters */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             {CATEGORIES.map(cat => (
               <button key={cat.id} onClick={() => setFilter(cat.id)}
-                className="px-4 py-2 rounded-full text-sm font-semibold transition-all"
-                style={filter === cat.id
-                  ? { background: "#0a0a0a", color: "#fff" }
-                  : { background: "#f4f4f5", color: "#71717a" }}>
+                style={{
+                  padding: "8px 18px", borderRadius: 50,
+                  fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
+                  background: filter === cat.id ? "#111" : "#fff",
+                  color: filter === cat.id ? "#fff" : "#6b7280",
+                  boxShadow: filter === cat.id ? "none" : "0 1px 3px rgba(0,0,0,0.06)",
+                  transition: "all 0.15s",
+                }}
+              >
                 {cat.label}
               </button>
             ))}
           </div>
-          <p className="text-sm text-gray-400 mono">{items.length} tác phẩm</p>
+
+          {/* Right: search */}
+          <div style={{ position: "relative" }}>
+            <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }} />
+            <input
+              type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Tìm kiếm..."
+              style={{
+                width: 220, paddingLeft: 34, paddingRight: search ? 32 : 12,
+                paddingTop: 8, paddingBottom: 8,
+                fontSize: 13, borderRadius: 50, border: "1px solid #e5e7eb",
+                background: "#fff", outline: "none", color: "#333",
+              }}
+            />
+            {search && (
+              <button onClick={() => setSearch("")}
+                style={{
+                  position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                  background: "transparent", border: "none", color: "#9ca3af", cursor: "pointer",
+                }}>
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Skeleton */}
+        {/* ── Skeleton ── */}
         {isLoading && (
-          <div className="columns-2 md:columns-3 lg:columns-4 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="mb-4 break-inside-avoid rounded-2xl animate-pulse"
-                style={{ height: `${200 + (i % 3) * 80}px`, background: "#f4f4f5" }} />
+          <div style={{ display: "flex", gap: 12 }}>
+            {Array.from({ length: COLUMN_COUNT }).map((_, col) => (
+              <div key={col} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
+                {Array.from({ length: 3 }).map((_, row) => (
+                  <div key={row} style={{
+                    borderRadius: 16, background: "#eee",
+                    aspectRatio: getAspectRatio(col * 3 + row),
+                    animation: "pulse 1.5s ease-in-out infinite",
+                  }} />
+                ))}
+              </div>
             ))}
           </div>
         )}
 
-        {/* Masonry grid */}
-        {!isLoading && (
-          <div className="columns-2 md:columns-3 lg:columns-4 gap-4">
-            {items.length === 0 ? (
-              <div className="col-span-full text-center py-20">
-                <div className="text-5xl mb-4">🎨</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Chưa có tác phẩm</h3>
-                <p className="text-gray-400 mb-6">Hãy là người đầu tiên chia sẻ tác phẩm AI!</p>
-                <Link href="/studio" className="px-6 py-3 rounded-lg text-sm font-semibold text-white"
-                  style={{ background: "var(--cta-gradient)" }}>Tạo ngay</Link>
-              </div>
-            ) : items.map((item, idx) => (
-              <div key={item.id}
-                className="mb-4 break-inside-avoid group rounded-2xl overflow-hidden relative cursor-pointer"
-                style={{ background: "#f4f4f5" }}
-                onClick={() => setLightbox(item)}>
-                <div className="w-full"
-                  style={{
-                    aspectRatio: idx % 3 === 0 ? "3/4" : idx % 3 === 1 ? "1/1" : "4/5",
-                    background: item.outputUrl ? "transparent" : PLACEHOLDER_GRADIENTS[idx % PLACEHOLDER_GRADIENTS.length],
-                  }}>
-                  {item.outputUrl
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={item.outputUrl} alt={item.featureName} className="w-full h-full object-cover" />
-                    : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-white/30 text-xs mono uppercase tracking-widest">AI</span>
-                      </div>
-                    )}
+        {/* ── Empty state ── */}
+        {!isLoading && items.length === 0 && (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>🎨</div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: "#111", marginBottom: 8 }}>Chưa có tác phẩm</h3>
+            <p style={{ color: "#9ca3af", marginBottom: 24 }}>Hãy là người đầu tiên chia sẻ tác phẩm AI!</p>
+            <Link href="/studio" style={{
+              padding: "12px 28px", borderRadius: 50, fontSize: 14, fontWeight: 700,
+              color: "#fff", textDecoration: "none",
+              background: "linear-gradient(135deg,#7c3aed,#6d28d9)",
+              boxShadow: "0 4px 16px rgba(124,58,237,0.3)",
+            }}>
+              Tạo ngay
+            </Link>
+          </div>
+        )}
 
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 flex flex-col justify-end p-3 gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)" }}
-                    onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
-                          style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)" }}>
-                          {(item.userName ?? "A")[0]}
+        {/* ── Masonry Grid ── */}
+        {!isLoading && items.length > 0 && (
+          <div style={{ display: "flex", gap: 12 }}>
+            {columns.map((colItems, colIdx) => (
+              <div key={colIdx} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
+                {colItems.map((item, rowIdx) => {
+                  const globalIdx = colIdx + rowIdx * COLUMN_COUNT;
+                  return (
+                    <div key={item.id} className="gallery-card"
+                      style={{
+                        position: "relative", borderRadius: 16, overflow: "hidden",
+                        cursor: "pointer", background: "#e5e7eb",
+                      }}
+                      onClick={() => setLightbox(item)}
+                    >
+                      <div style={{ aspectRatio: getAspectRatio(globalIdx), position: "relative" }}>
+                        {item.outputUrl
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={item.outputUrl} alt={item.featureName}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            loading="lazy" />
+                          : (
+                            <div style={{
+                              width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+                              background: "linear-gradient(135deg,#f3f0ff,#ede9fe)",
+                            }}>
+                              <span style={{ color: "#c4b5fd", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>AI</span>
+                            </div>
+                          )}
+
+                        {/* Hover overlay — bottom gradient with actions */}
+                        <div className="gallery-card-overlay" style={{
+                          position: "absolute", inset: 0, opacity: 0,
+                          background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 40%, transparent 60%)",
+                          display: "flex", flexDirection: "column", justifyContent: "flex-end",
+                          padding: 12, transition: "opacity 0.25s ease",
+                        }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            {/* User info */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <div style={{
+                                width: 24, height: 24, borderRadius: "50%",
+                                background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: 10, fontWeight: 700, color: "#fff",
+                              }}>
+                                {(item.userName ?? "A")[0]}
+                              </div>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>
+                                {item.userName ?? "Ẩn danh"}
+                              </span>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div style={{ display: "flex", gap: 4 }}>
+                              <button onClick={() => likeMut.mutate(item)}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: 3,
+                                  padding: "4px 8px", borderRadius: 8, border: "none",
+                                  background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)",
+                                  color: "#fff", fontSize: 11, cursor: "pointer",
+                                }}>
+                                <Heart size={11} fill={item.isLikedByMe ? "#f87171" : "none"} stroke={item.isLikedByMe ? "#f87171" : "white"} />
+                                {item.likeCount}
+                              </button>
+                              {item.outputUrl && (
+                                <button onClick={() => {
+                                  navigator.clipboard.writeText(item.outputUrl).then(() => toast.success("Đã copy link!")).catch(() => toast.error("Lỗi copy."));
+                                }}
+                                  style={{
+                                    display: "flex", alignItems: "center", padding: "4px 8px",
+                                    borderRadius: 8, border: "none",
+                                    background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)",
+                                    color: "#fff", cursor: "pointer",
+                                  }}>
+                                  <Link2 size={11} />
+                                </button>
+                              )}
+                              {item.outputUrl && (
+                                <a href={item.outputUrl} download onClick={e => e.stopPropagation()}
+                                  style={{
+                                    display: "flex", alignItems: "center", padding: "4px 8px",
+                                    borderRadius: 8, textDecoration: "none",
+                                    background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)",
+                                    color: "#fff",
+                                  }}>
+                                  <Download size={11} />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 10, marginTop: 4, fontWeight: 500 }}>
+                            {item.featureName}
+                          </p>
                         </div>
-                        <span className="text-white text-[11px] font-semibold">{item.userName ?? "Ẩn danh"}</span>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button onClick={() => likeMut.mutate(item)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-white"
-                          style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}>
-                          <Heart size={11} fill={item.isLikedByMe ? "#f87171" : "none"} stroke={item.isLikedByMe ? "#f87171" : "white"} />
-                          {item.likeCount}
-                        </button>
-                        {item.outputUrl && (
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(item.outputUrl!).then(() => {
-                                toast.success("Đã copy link ảnh!");
-                              }).catch(() => toast.error("Không thể copy link."));
-                            }}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-white"
-                            style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}
-                            title="Copy link"
-                          >
-                            <Link2 size={11} />
-                          </button>
-                        )}
-                        {item.outputUrl && (
-                          <a href={item.outputUrl} download onClick={e => e.stopPropagation()}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-white"
-                            style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}>
-                            <Download size={11} />
-                          </a>
-                        )}
                       </div>
                     </div>
-                    <p className="text-white/70 text-[11px] font-medium">{item.featureName}</p>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             ))}
           </div>
         )}
 
-        {/* Load more */}
+        {/* ── Load more ── */}
         {hasNextPage && (
-          <div className="text-center mt-12">
+          <div style={{ textAlign: "center", marginTop: 32 }}>
             <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}
-              className="px-8 py-3 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center gap-2 mx-auto"
-              style={{ background: "#f4f4f5", color: "#71717a" }}>
+              style={{
+                padding: "12px 32px", borderRadius: 50,
+                fontSize: 14, fontWeight: 600, border: "1px solid #e5e7eb",
+                background: "#fff", color: "#6b7280", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 8,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                transition: "all 0.15s",
+              }}>
               {isFetchingNextPage && <Loader2 size={14} className="animate-spin" />}
               {isFetchingNextPage ? "Đang tải..." : "Xem thêm"}
             </button>
           </div>
         )}
+
+        {/* ── Item count ── */}
+        {items.length > 0 && (
+          <p style={{ textAlign: "center", fontSize: 12, color: "#d1d5db", marginTop: 16 }}>
+            {items.length} tác phẩm
+          </p>
+        )}
       </div>
 
-      {/* Lightbox */}
+      {/* ── Lightbox ── */}
       {lightbox && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.9)", backdropFilter: "blur(8px)" }}
-          onClick={() => setLightbox(null)}>
-          <button className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
-            onClick={() => setLightbox(null)}>
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 16, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)",
+        }}
+          onClick={() => setLightbox(null)}
+        >
+          <button style={{
+            position: "absolute", top: 16, right: 16,
+            background: "transparent", border: "none", color: "rgba(255,255,255,0.6)",
+            cursor: "pointer",
+          }}
+            onClick={() => setLightbox(null)}
+          >
             <X size={24} />
           </button>
-          <div className="relative max-w-2xl max-h-[90vh] rounded-2xl overflow-hidden"
-            onClick={e => e.stopPropagation()}>
+          <div style={{
+            position: "relative", maxWidth: 640, maxHeight: "90vh",
+            borderRadius: 16, overflow: "hidden",
+          }}
+            onClick={e => e.stopPropagation()}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={lightbox.outputUrl} alt={lightbox.featureName} className="max-h-[85vh] object-contain" />
-            <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between"
-              style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)" }}>
-              <span className="text-white text-sm font-semibold">{lightbox.featureName}</span>
-              <div className="flex gap-2">
+            <img src={lightbox.outputUrl} alt={lightbox.featureName}
+              style={{ maxHeight: "85vh", objectFit: "contain", display: "block" }} />
+            <div style={{
+              position: "absolute", bottom: 0, left: 0, right: 0,
+              padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
+            }}>
+              <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{lightbox.featureName}</span>
+              <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => likeMut.mutate(lightbox)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-white"
-                  style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}>
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    padding: "6px 12px", borderRadius: 8, border: "none",
+                    background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)",
+                    color: "#fff", fontSize: 13, cursor: "pointer",
+                  }}>
                   <Heart size={13} fill={lightbox.isLikedByMe ? "#f87171" : "none"} stroke={lightbox.isLikedByMe ? "#f87171" : "white"} />
                   {lightbox.likeCount}
                 </button>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(lightbox.outputUrl).then(() => {
-                      toast.success("Đã copy link ảnh!");
-                    }).catch(() => toast.error("Không thể copy link."));
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-white"
-                  style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}
-                  title="Copy link"
-                >
+                <button onClick={() => {
+                  navigator.clipboard.writeText(lightbox.outputUrl).then(() => toast.success("Đã copy link!")).catch(() => toast.error("Lỗi copy."));
+                }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    padding: "6px 12px", borderRadius: 8, border: "none",
+                    background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)",
+                    color: "#fff", fontSize: 13, cursor: "pointer",
+                  }}>
                   <Link2 size={13} />
                 </button>
                 <a href={lightbox.outputUrl} download
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-white"
-                  style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)" }}>
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    padding: "6px 12px", borderRadius: 8, textDecoration: "none",
+                    background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)",
+                    color: "#fff", fontSize: 13,
+                  }}>
                   <Download size={13} /> Tải về
                 </a>
               </div>
@@ -331,6 +544,24 @@ export default function GalleryPage() {
           </div>
         </div>
       )}
+
+      {/* ── CSS for hover effects ── */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        .gallery-card {
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .gallery-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+        }
+        .gallery-card:hover .gallery-card-overlay {
+          opacity: 1 !important;
+        }
+      `}</style>
     </div>
   );
 }

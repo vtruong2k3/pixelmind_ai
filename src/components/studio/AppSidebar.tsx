@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Compass, Menu, X,
+  Compass, Menu, X, Clock,
   Video, Type, ImageIcon, PenTool,
   Film, User, Music, Mic, MoreHorizontal,
   Megaphone, Workflow,
+  Folder,
 } from "lucide-react";
 
 /* ──────────────────────────────────────────────
@@ -53,15 +54,16 @@ function SidebarContent({
       overflowY: "auto", overflowX: "hidden",
       paddingBottom: 24, color: "#fff",
     }}>
-      {/* CTA — outline style like Deevid.ai */}
+      {/* CTA — matching Deevid.ai style */}
       <div style={{ padding: "16px 12px 4px", display: "flex", alignItems: "center", gap: 8 }}>
         <Link href="/studio" style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-          flex: 1, height: 38, borderRadius: 10,
-          border: "1px solid #7c3aed",
-          background: "transparent",
-          color: "#7c3aed", fontSize: 13, fontWeight: 600,
+          flex: 1, height: 46, borderRadius: 10,
+          border: "1px solid rgba(124,58,237,0.35)",
+          background: "rgba(124,58,237,0.1)",
+          color: "#a78bfa", fontSize: 14, fontWeight: 600,
           textDecoration: "none",
+          transition: "all 0.15s",
         }}>
           ✦ Create with Agent
         </Link>
@@ -77,9 +79,10 @@ function SidebarContent({
         )}
       </div>
 
-      {/* Explore */}
+      {/* Explore & History */}
       <div style={{ padding: "6px 0 0" }}>
         <SidebarItemLink icon={<Compass size={18} />} label="Explore" href="/gallery" />
+        <SidebarItemLink icon={<Folder size={18} />} label="My Assets" href="/history" />
       </div>
 
       {/* CREATION TOOLS */}
@@ -181,7 +184,7 @@ export default function AppSidebar(props: AppSidebarProps) {
   return (
     <aside style={{
       display: "flex", flexDirection: "column",
-      width: 220, minWidth: 220,
+      width: 240, minWidth: 240,
       height: "100%", background: "#060A0C",
       borderRight: "1px solid #1D2127",
       overflow: "hidden", zIndex: 20,
