@@ -5,7 +5,8 @@
  * R2 free tier: 10GB storage + 1M requests/tháng.
  */
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID!;
@@ -54,11 +55,13 @@ export async function uploadToR2(
  */
 export async function uploadUrlToR2(
   url: string,
-  folder: UploadFolder = "inputs"
+  folder: UploadFolder = "inputs",
+  headers?: Record<string, string>
 ): Promise<string> {
-  const res = await fetch(url, { headers: { "User-Agent": "PixelMind/1.0" } });
+  const fetchHeaders = { "User-Agent": "PixelMind/1.0", ...headers };
+  const res = await fetch(url, { headers: fetchHeaders });
   if (!res.ok) {
-    throw new Error(`[r2] Download thất bại: ${res.status} ${url}`);
+    throw new Error(`[r2] Download thất bại: ${res.status} ${res.statusText} ${url}`);
   }
 
   const buffer = Buffer.from(await res.arrayBuffer());
@@ -86,12 +89,18 @@ export async function deleteFromR2(url: string): Promise<void> {
 }
 
 /**
- * Presigned upload URL (dành cho future use / client-side upload).
+ * Tạo presigned URL để client upload trực tiếp lên R2 (client-side upload).
+ * URL hết hạn sau `expiresIn` giây (mặc định 5 phút).
  */
 export async function createPresignedUploadUrl(
-  _key: string,
-  _contentType: string
+  key: string,
+  contentType: string,
+  expiresIn = 300
 ): Promise<string> {
-  // Chưa implement — dùng uploadToR2 server-side thay thế
-  return "";
+  const command = new PutObjectCommand({
+    Bucket:      BUCKET,
+    Key:         key,
+    ContentType: contentType,
+  });
+  return getSignedUrl(s3, command, { expiresIn });
 }

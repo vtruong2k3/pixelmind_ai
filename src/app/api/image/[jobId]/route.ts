@@ -51,9 +51,27 @@ export async function GET(
       });
     }
 
-    // 2) R2 public URL hoặc Chainhub S3 URL → redirect trực tiếp
-    //    R2 URL: https://pub-xxx.r2.dev/outputs/uuid.png  (vĩnh viễn)
-    //    Chainhub: https://s3...amazonaws.com/...          (7 ngày)
+    // 2) Kéo ảnh trực tiếp từ Chainhub (private URL cần Auth)
+    if (outputUrl.includes("chainhub.tech")) {
+      const fetchHeaders = {
+        "User-Agent": "PixelMind/1.0",
+        Authorization: `Bearer ${process.env.CHAINHUB_API_KEY}`,
+      };
+      const res = await fetch(outputUrl, { headers: fetchHeaders });
+      if (!res.ok) {
+        return new NextResponse("Failed to fetch image from source", { status: res.status });
+      }
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const contentType = res.headers.get("content-type") || "image/png";
+      return new NextResponse(buffer, {
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    }
+
+    // 3) R2 public URL hoặc Chainhub S3 URL (presigned) → redirect
     return NextResponse.redirect(outputUrl, {
       headers: {
         "Cache-Control": "public, max-age=3600",

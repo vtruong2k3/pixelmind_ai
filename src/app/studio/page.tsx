@@ -1,641 +1,772 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense, useRef } from "react";
 import { useStudioStore } from "@/store/studioStore";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import Navbar from "@/components/layout/Navbar";
-import FeatureSidebar  from "@/components/studio/FeatureSidebar";
-import FeaturePanel    from "@/components/studio/FeaturePanel";
-import UploadZone      from "@/components/studio/UploadZone";
-import PromptInput     from "@/components/studio/PromptInput";
-import SizePresets     from "@/components/studio/SizePresets";
-import ResultPanel     from "@/components/studio/ResultPanel";
-import { FIcon }       from "@/components/studio/icons";
+import Navbar              from "@/components/layout/Navbar";
+import AppSidebar          from "@/components/studio/AppSidebar";
+import StudioTabs          from "@/components/studio/StudioTabs";
+import type { StudioMode } from "@/components/studio/StudioTabs";
+import TemplatesGrid       from "@/components/studio/TemplatesGrid";
+import StudioUploadZone    from "@/components/studio/StudioUploadZone";
+import PromptArea          from "@/components/studio/PromptArea";
+import SettingsRow, { ImageSettingsRow } from "@/components/studio/SettingsRow";
+import InpaintDialog       from "@/components/studio/InpaintCanvas";
+import { SidebarContent }  from "@/components/studio/AppSidebar";
+import { FIcon }           from "@/components/studio/icons";
 
-import { AI_FEATURES, CATEGORIES, FEATURE_PROMPTS, SIZE_PRESETS } from "@/lib/features";
-import type { AIFeature, UploadedFile, ResultItem, SizePreset, JobQuality, JobOrientation } from "@/types/ui";
-import { Zap, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { AI_FEATURES, FEATURE_PROMPTS, SIZE_PRESETS } from "@/lib/features";
+import type { AIFeature, UploadedFile, ResultItem } from "@/types/ui";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 
-// ── Fetch active features từ DB — fallback sang static khi chưa load ────────
+/* ══════════════════════════════════════════════════
+ * COLOR CONSTANTS — matching Deevid.ai exact palette
+ * ══════════════════════════════════════════════════*/
+const C = {
+  pageBg:     "#060A0C",
+  panelBg:    "#0C1015",
+  panelBorder:"#252D36",
+  uploadBg:   "#151A1F",
+  uploadBrd:  "#2E3740",
+  textPrimary:"rgba(255,255,255,0.9)",
+  textSecond: "rgba(255,255,255,0.45)",
+  textMuted:  "rgba(255,255,255,0.25)",
+  accent:     "#7c3aed",
+  accentHover:"#6d28d9",
+  accentLight:"#a78bfa",
+  ctaGradient:"linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+  ctaGradientHover:"linear-gradient(135deg, #6d28d9 0%, #4338ca 100%)",
+  inputBg:    "#0C1015",
+  inputBorder:"#252D36",
+};
+
+// ── Fetch active features từ DB ───────────────────
 async function fetchStudioFeatures(): Promise<AIFeature[]> {
   const res = await fetch("/api/features");
   if (!res.ok) throw new Error();
   const data = await res.json();
   return (data.features ?? []).map((f: any) => ({
-    slug:       f.slug,
-    name:       f.name,
-    desc:       f.description ?? "",
-    category:   f.category,
-    credits:    f.creditCost,
-    imageCount: f.imageCount,
+    slug: f.slug, name: f.name, desc: f.description ?? "",
+    category: f.category, credits: f.creditCost, imageCount: f.imageCount,
   } as AIFeature));
 }
 
-// ─────────────────────────────────────────────────────────────
-// Drag-to-resize hook
-// ─────────────────────────────────────────────────────────────
-function useDragResize(
-  initial: number,
-  min: number,
-  max: number,
-  direction: "left" | "right" = "right"
-) {
-  const [width, setWidth] = useState(initial);
-  const dragging = useRef(false);
-  const startX = useRef(0);
-  const startW = useRef(initial);
-
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    dragging.current = true;
-    startX.current = e.clientX;
-    startW.current = width;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }, [width]);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!dragging.current) return;
-      const delta = direction === "right"
-        ? e.clientX - startX.current
-        : startX.current - e.clientX;
-      const next = Math.max(min, Math.min(max, startW.current + delta));
-      setWidth(next);
-    };
-    const onUp = () => {
-      dragging.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [direction, min, max]);
-
-  return { width, onMouseDown };
-}
-
-// ─────────────────────────────────────────────────────────────
-// INNER STUDIO
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────
 function StudioInner() {
   const { data: session, update: updateSession } = useSession();
   const user = session?.user as any;
   const isAdmin: boolean = user?.isAdmin === true;
   const sessionCredits: number = user?.credits ?? 0;
-
-  // Local credits — cập nhật ngay lập tức khi submit/fail/done
   const [localCredits, setLocalCredits] = useState<number>(sessionCredits);
-  // Sync khi session thay đổi (login lần đầu, updateSession thành công)
   useEffect(() => { setLocalCredits(sessionCredits); }, [sessionCredits]);
-
   const credits = isAdmin ? 9999 : localCredits;
   const searchParams = useSearchParams();
-  const initialSlug  = searchParams?.get("feature") ?? AI_FEATURES[0].slug;
 
-  // ── Dynamic features từ DB (realtime khi admin thêm/sửa/xóa) ─────────────
   const { data: dbFeatures } = useQuery({
     queryKey: ["studio-features"],
     queryFn:  fetchStudioFeatures,
     staleTime: 60_000,
   });
-  // Dùng DB features nếu có, fallback sang static khi loading
   const allFeatures: AIFeature[] = dbFeatures && dbFeatures.length > 0 ? dbFeatures : AI_FEATURES;
 
-  // ── Zustand: persist prefs across navigation ────────────────
   const {
-    activeFeatureSlug,    setActiveFeatureSlug,
-    activeCategory,       setActiveCategory,
-    quality,              setQuality,
-    orientation,          setOrientation,
-    selectedPresetIdx,    setSelectedPresetIdx,
-    isPublic,             setIsPublic,
-    featurePanelOpen,     setFeaturePanelOpen,
+    activeFeatureSlug, setActiveFeatureSlug,
+    quality, setQuality,
+    orientation, setOrientation,
+    selectedPresetIdx, setSelectedPresetIdx,
+    isPublic, setIsPublic,
   } = useStudioStore();
 
-  // Resolve feature object từ slug (ưu tiên ?feature= query, sau đó Zustand persisted slug)
   const activeFeature: AIFeature =
     allFeatures.find(f => f.slug === (searchParams?.get("feature") ?? activeFeatureSlug))
     ?? allFeatures.find(f => f.slug === activeFeatureSlug)
-    ?? allFeatures[0]
-    ?? AI_FEATURES[0]; // final fallback
+    ?? allFeatures[0] ?? AI_FEATURES[0];
 
-  // ── Panel state ────────────────────────────────────────────
-  const [mobileView, setMobileView] = useState<"form" | "result">("form");
+  const [studioMode, setStudioMode]   = useState<StudioMode>("start_image");
+  const [sidebarActiveId, setSidebarActiveId] = useState("image_to_video");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [settingsQuality, setSettingsQuality]   = useState("sd");
+  const [settingsResolution, setSettingsResolution] = useState("720");
+  const [settingsDuration, setSettingsDuration] = useState("5");
+  const [settingsRatio, setSettingsRatio] = useState("16:9");
 
-  // ── Drag resize ────────────────────────────────────────────
-  const featurePanel = useDragResize(260, 180, 380, "right");
-  const resultPanel  = useDragResize(340, 240, 520, "left");
+  /* AI Image specific state */
+  const [aiImageMode, setAiImageMode] = useState<"image_to_image" | "text_to_image" | "templates">("image_to_image");
+  const [imgModel, setImgModel]         = useState("nano_banana_2");
+  const [imgRatio, setImgRatio]         = useState("1:1");
+  const [imgResolution, setImgResolution] = useState("2k");
+  const [imgOutputs, setImgOutputs]     = useState("1");
+  const [inpaintTool, setInpaintTool]   = useState<"brush" | "eraser" | null>("brush");
+  const [inpaintOpen, setInpaintOpen]   = useState(false);
+  const [maskDataUrl, setMaskDataUrl]   = useState<string | null>(null);
 
-  // ── Uploads ────────────────────────────────────────────────
   const [image1, setImage1] = useState<UploadedFile | null>(null);
   const [image2, setImage2] = useState<UploadedFile | null>(null);
-
-  // ── Prompt (local — reset khi đổi feature) ─────────────────
+  const [preview1, setPreview1] = useState("");
+  const [preview2, setPreview2] = useState("");
   const [prompt, setPrompt] = useState<string>(FEATURE_PROMPTS[activeFeature.slug] ?? "");
+  const [results, setResults] = useState<ResultItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [mobileView, setMobileView] = useState<"form" | "result">("form");
+  const carouselRef = useRef<HTMLDivElement>(null);
 
-  // ── Custom size (local — không cần persist) ─────────────────
-  const [isCustomSize, setIsCustomSize] = useState<boolean>(false);
-  const [customW, setCustomW]           = useState<number>(1024);
-  const [customH, setCustomH]           = useState<number>(1536);
+  const scrollCarousel = (dir: "left" | "right") => {
+    carouselRef.current?.scrollBy({ left: dir === "left" ? -200 : 200, behavior: "smooth" });
+  };
 
-  // ── Results ────────────────────────────────────────────────
-  const [results, setResults]   = useState<ResultItem[]>([]);
-  const [loading, setLoading]   = useState<boolean>(false);
-
-  // ── Handlers ───────────────────────────────────────────────
   const switchFeature = (f: AIFeature) => {
-    setActiveFeatureSlug(f.slug); // persist vào Zustand
-    setImage1(null);
-    setImage2(null);
+    setActiveFeatureSlug(f.slug);
+    setImage1(null); setImage2(null);
+    setPreview1(""); setPreview2("");
     setPrompt(FEATURE_PROMPTS[f.slug] ?? "");
   };
 
-  const makeUploadHandler = useCallback(
-    (setter: React.Dispatch<React.SetStateAction<UploadedFile | null>>) =>
-      (file: File) => setter({ file, preview: URL.createObjectURL(file) }),
-    []
-  );
+  const handleSelectTemplate = (f: AIFeature, templatePrompt: string) => {
+    switchFeature(f);
+    setPrompt(templatePrompt);
+    setStudioMode("start_image");
+  };
 
-  const selectPreset = (i: number) => {
-    const preset: SizePreset = SIZE_PRESETS[i];
-    setSelectedPresetIdx(i);  // persist vào Zustand
-    setIsCustomSize(false);
-    setCustomW(preset.w);
-    setCustomH(preset.h);
-    setOrientation(preset.orientation); // persist vào Zustand
+  const handleFile1 = (f: File | null) => {
+    if (f) { setImage1({ file: f, preview: URL.createObjectURL(f) }); setPreview1(URL.createObjectURL(f)); }
+    else { setImage1(null); setPreview1(""); }
+  };
+  const handleFile2 = (f: File | null) => {
+    if (f) { setImage2({ file: f, preview: URL.createObjectURL(f) }); setPreview2(URL.createObjectURL(f)); }
+    else { setImage2(null); setPreview2(""); }
   };
 
   const handleGenerate = async () => {
     if (!session?.user) {
-      toast.error("Vui lòng đăng nhập để tạo ảnh.");
+      toast.error("Vui lòng đăng nhập.");
       setTimeout(() => { window.location.href = `/login?callbackUrl=/studio?feature=${activeFeature.slug}`; }, 1500);
       return;
     }
-
-    if (activeFeature.imageCount > 0 && !image1) { 
-      toast.error("Vui lòng upload ảnh chính."); return; 
-    }
+    if (activeFeature.imageCount > 0 && !image1) { toast.error("Vui lòng upload ảnh."); return; }
     setLoading(true);
-    setMobileView("result");
 
     try {
       const preset = SIZE_PRESETS[selectedPresetIdx];
-      const w = isCustomSize ? customW : preset.w;
-      const h = isCustomSize ? customH : preset.h;
-
       const formData = new FormData();
       formData.append("featureSlug", activeFeature.slug);
-      formData.append("prompt",      prompt || (FEATURE_PROMPTS[activeFeature.slug] ?? ""));
-      formData.append("quality",     quality);
+      formData.append("prompt", prompt || (FEATURE_PROMPTS[activeFeature.slug] ?? ""));
+      formData.append("quality", settingsQuality === "sd" ? "sd" : "hd");
       formData.append("orientation", orientation);
-      formData.append("width",       String(w));
-      formData.append("height",      String(h));
-      formData.append("isPublic",    String(isPublic));
-      
+      formData.append("width", String(preset?.w ?? 1024));
+      formData.append("height", String(preset?.h ?? 1536));
+      formData.append("isPublic", String(isPublic));
       if (image1) formData.append("image", image1.file);
       if (image2) formData.append("image_2", image2.file);
 
-      // Step 1: Submit — trả về jobId ngay trong <2 giây
-      const res  = await fetch("/api/generate", { method: "POST", body: formData });
-      const data = await res.json() as { jobId?: string; taskId?: string; error?: string };
-
+      const res = await fetch("/api/generate", { method: "POST", body: formData });
+      const data = await res.json() as { jobId?: string; error?: string };
       if (!res.ok || data.error) {
-        if (res.status === 402) {
-          toast.error("Không đủ credits. Đang chuyển đến trang nạp credits...");
-          setTimeout(() => { window.location.href = "/pricing"; }, 1500);
-        } else {
-          toast.error(data.error ?? "Lỗi tạo ảnh. Vui lòng thử lại.");
-        }
+        if (res.status === 402) { toast.error("Hết credits."); setTimeout(() => { window.location.href = "/pricing"; }, 1500); }
+        else toast.error(data.error ?? "Lỗi.");
         return;
       }
-
       const jobId = data.jobId;
-      if (!jobId) { toast.error("Không nhận được jobId."); return; }
+      if (!jobId) { toast.error("Không có jobId."); return; }
+      setLocalCredits(prev => Math.max(0, prev - activeFeature.credits));
+      updateSession();
 
-      // Trừ credits ngay trên UI (không đợi session refresh)
-      const cost = activeFeature.credits;
-      setLocalCredits(prev => Math.max(0, prev - cost));
-      updateSession(); // refresh Navbar sau
-
-      // Step 2: Poll status mỗi 3 giây cho đến khi xong
-      const MAX_POLLS = 100; // 100 × 3s = 5 phút
-      let doneNoUrlRetries = 0;
-
-      for (let i = 0; i < MAX_POLLS; i++) {
+      for (let i = 0; i < 100; i++) {
         await new Promise(r => setTimeout(r, 3000));
-
-        let statusData: { status: string; outputUrl?: string; error?: string } = { status: "PROCESSING" };
         try {
-          const statusRes = await fetch(`/api/generate/status?jobId=${jobId}`);
-          statusData = await statusRes.json();
-        } catch (fetchErr) {
-          console.warn(`[poll ${i + 1}] Network error, retrying...`, fetchErr);
-          continue;
-        }
-
-        console.log(`[poll ${i + 1}] status=${statusData.status} outputUrl=${statusData.outputUrl ?? "none"}`);
-
-        if (statusData.status === "COMPLETED") {
-          if (statusData.outputUrl) {
-            setResults(prev => [{
-              id:          jobId,
-              outputUrl:   statusData.outputUrl!,
-              featureName: activeFeature.name,
-              featureSlug: activeFeature.slug,
-              createdAt:   new Date(),
-            }, ...prev]);
+          const sr = await fetch(`/api/generate/status?jobId=${jobId}`);
+          const sd = await sr.json();
+          if (sd.status === "COMPLETED" && sd.outputUrl) {
+            setResults(prev => [{ id: jobId, outputUrl: sd.outputUrl, featureName: activeFeature.name, featureSlug: activeFeature.slug, createdAt: new Date() }, ...prev]);
             toast.success("Ảnh đã tạo xong! ✦");
-            // Cập nhật credits trong session mà không cần F5
-            await updateSession();
-            return;
-          } else {
-            doneNoUrlRetries++;
-            console.warn(`[poll ${i + 1}] status=COMPLETED nhưng outputUrl rỗng (retry ${doneNoUrlRetries}/3)`);
-            if (doneNoUrlRetries >= 3) {
-              toast.error("Ảnh đã xong nhưng không thể tải. Vui lòng xem lại Lịch sử.");
-              return;
-            }
-            continue;
+            await updateSession(); return;
           }
-        }
-
-        if (statusData.status === "FAILED") {
-          toast.error(statusData.error ?? "Tạo ảnh thất bại.");
-          // Hoàn credits lại trên UI ngay lập tức
-          setLocalCredits(prev => prev + activeFeature.credits);
-          await updateSession();
-          return;
-        }
+          if (sd.status === "FAILED") { toast.error(sd.error ?? "Thất bại."); setLocalCredits(p => p + activeFeature.credits); return; }
+        } catch {}
       }
-
-      toast.error("Hết thời gian chờ. Vui lòng thử lại.");
-    } catch (err) {
-      toast.error("Lỗi kết nối. Vui lòng kiểm tra mạng.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      toast.error("Hết thời gian.");
+    } catch { toast.error("Lỗi kết nối."); } finally { setLoading(false); }
   };
 
-  const filteredFeatures = activeCategory === "all"
-    ? allFeatures
-    : allFeatures.filter(f => f.category === activeCategory);
-
-  const currentW = isCustomSize ? customW : (SIZE_PRESETS[selectedPresetIdx]?.w ?? 1024);
-  const currentH = isCustomSize ? customH : (SIZE_PRESETS[selectedPresetIdx]?.h ?? 1536);
+  const latest = results[0];
 
   // ─────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────
   return (
-    <div
-      className="flex flex-col"
-      style={{ height: "100dvh", overflow: "hidden", background: "#0a0a0a" }}
-    >
+    <>
+    <div style={{ height: "100dvh", overflow: "hidden", background: C.pageBg, display: "flex", flexDirection: "column" }}>
+      {/* Navbar */}
       <Navbar />
 
-      {/* ── Desktop layout ── */}
-      <div
-        className="hidden lg:flex flex-1 min-h-0 overflow-hidden"
-      >
-        {/* Col 1 — Category icon sidebar */}
-        <FeatureSidebar
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
-        />
+      {/* ═══ DESKTOP ═══ */}
+      <div className="hidden lg:flex" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        {/* Sidebar */}
+        <AppSidebar activeId={sidebarActiveId} onSelectItem={setSidebarActiveId} />
+        {/* Main — 2 panels */}
+        <div style={{ flex: 1, display: "flex", gap: 16, padding: 16, minHeight: 0, overflow: "hidden" }}>
 
-        {/* Col 2 — Feature list (collapsible + resizable) */}
-        {featurePanelOpen && (
-          <>
-            <div
-              className="shrink-0 overflow-y-auto relative studio-scroll"
-              style={{ width: featurePanel.width, minHeight: 0, background: "#0f0f0f", borderRight: "1px solid #1c1c1c" }}
-            >
-              {/* Close button */}
-              <button
-                onClick={() => setFeaturePanelOpen(false)}
-                className="absolute top-3 right-2 z-10 w-6 h-6 rounded-lg flex items-center justify-center opacity-40 hover:opacity-100 transition-opacity"
-                style={{ color: "rgba(255,255,255,0.6)" }}
-                title="Ẩn danh sách tính năng"
-              >
-                <PanelLeftClose size={14} />
-              </button>
+          {/* ─── LEFT PANEL ─── */}
+          {(() => {
+            /* Derive layout mode from sidebar */
+            const isTextToVideo = sidebarActiveId === "text_to_video";
+            const isImageToVideo = sidebarActiveId === "image_to_video";
+            const isAIImage = sidebarActiveId === "ai_image";
+            const isAIImageEditor = sidebarActiveId === "ai_image_editor";
+            const SIDEBAR_TITLES: Record<string, string> = {
+              image_to_video: "Image to Video AI",
+              text_to_video: "Text to Video AI",
+              ai_image: "AI Image Generator",
+              ai_image_editor: "AI Image Editor",
+              ai_video_editor: "AI Video Editor",
+              ai_avatar: "AI Avatar",
+              ai_music: "AI Music",
+              text_to_speech: "Text To Speech",
+            };
+            const panelTitle = SIDEBAR_TITLES[sidebarActiveId] || activeFeature.name;
 
-              <FeaturePanel
-                features={filteredFeatures}
-                activeSlug={activeFeature.slug}
-                onSelect={switchFeature}
-              />
-            </div>
+            /* Determine what to show */
+            const showVideoTabs = isImageToVideo;
+            const showAIImageTabs = isAIImage;
+            const showUpload = (isImageToVideo && studioMode !== "templates")
+              || (isAIImage && aiImageMode === "image_to_image")
+              || isAIImageEditor;
+            const showTemplates = (isImageToVideo && studioMode === "templates")
+              || (isAIImage && aiImageMode === "templates");
+            const showPrompt = !showTemplates;
+            const showSettings = !showTemplates && !isAIImageEditor;
 
-            {/* Drag handle (resize) */}
-            <div
-              onMouseDown={featurePanel.onMouseDown}
-              className="shrink-0 flex items-center justify-center hover:bg-white/5 transition-colors cursor-col-resize group"
-              style={{ width: "4px", background: "#1c1c1c" }}
-            >
-              <div className="w-0.5 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "#a78bfa" }} />
-            </div>
-          </>
-        )}
+            const promptPlaceholder = isTextToVideo
+              ? "Please describe the video content. Master model supports audio generation, you can add sounds or dialogue to your prompt"
+              : isAIImage
+                ? "Upload reference images and describe how you'd like to generate or edit using them."
+                : isAIImageEditor
+                  ? "Describe your edits (add, remove, replace). Use the brush to mark areas or upload a reference image to specify changes."
+                  : studioMode === "between_images"
+                    ? "Describe how the reference image becomes a video scene."
+                    : "Describe the video content generated from this image.";
 
-        {/* Open feature panel button (when closed) */}
-        {!featurePanelOpen && (
-          <button
-            onClick={() => setFeaturePanelOpen(true)}
-            className="shrink-0 flex items-center justify-center w-7 hover:bg-white/5 transition-colors group"
-            style={{ borderRight: "1px solid #1c1c1c" }}
-            title="Mở danh sách tính năng"
-          >
-            <PanelLeftOpen size={14} style={{ color: "rgba(255,255,255,0.3)" }} />
-          </button>
-        )}
+            /* AI Image tab config */
+            const AI_IMAGE_TABS = [
+              { id: "image_to_image" as const, label: "Image to Image", badge: "" },
+              { id: "text_to_image" as const, label: "Text to Image", badge: "" },
+              { id: "templates" as const, label: "Templates", badge: "Hot" },
+            ];
 
-        {/* Col 3 — Workspace */}
-        <main className="flex-1 min-h-0 overflow-y-auto min-w-0 studio-scroll">
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-6 py-4 sticky top-0 z-10"
-            style={{ borderBottom: "1px solid #1c1c1c", background: "#0a0a0a" }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="flex items-center justify-center rounded-xl"
-                style={{ width: "38px", height: "38px", background: "rgba(180,167,214,0.1)" }}
-              >
-                <FIcon slug={activeFeature.slug} size={18} />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-white">{activeFeature.name}</div>
-                <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{activeFeature.desc}</div>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold mono"
-                style={{ background: "rgba(180,167,214,0.08)", border: "1px solid rgba(180,167,214,0.12)", color: "#a78bfa" }}
-              >
-                <Zap size={10} />
-                {activeFeature.credits} credits
-              </div>
-              <div
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold mono"
-                style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.12)", color: "#22c55e" }}
-              >
-                <Zap size={10} />
-                {isAdmin ? "∞" : credits} còn lại
-              </div>
-            </div>
-          </div>
+            return (
+              <div style={{
+                width: "40%", minWidth: 360, maxWidth: 500,
+                background: C.panelBg,
+                border: `1px solid ${C.panelBorder}`,
+                borderRadius: 18,
+                display: "flex", flexDirection: "column",
+                overflow: "hidden",
+              }}>
+                {/* Scrollable content */}
+                <div style={{ flex: 1, overflowY: "auto", padding: "14px 18px 8px" }} className="studio-scroll">
+                  {/* Title */}
+                  <h1 style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, margin: "0 0 10px" }}>
+                    {panelTitle}
+                  </h1>
 
-          {/* Body */}
-          <div className="p-6 flex flex-col gap-6 pb-32">
-            {/* Upload zones */}
-            {activeFeature.imageCount > 0 && (
-              <div className={`grid gap-4 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-                <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
-                {activeFeature.imageCount === 2 && (
-                  <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
+                  {/* Video Tabs — only for Image to Video */}
+                  {showVideoTabs && <StudioTabs active={studioMode} onChange={setStudioMode} />}
+
+                  {/* AI Image Tabs */}
+                  {showAIImageTabs && (
+                    <div style={{
+                      display: "flex", gap: 4, marginBottom: 12,
+                      background: "#151A1F", borderRadius: 10, padding: 3,
+                      border: `1px solid ${C.panelBorder}`,
+                    }}>
+                      {AI_IMAGE_TABS.map(tab => {
+                        const isActive = aiImageMode === tab.id;
+                        return (
+                          <button key={tab.id}
+                            onClick={() => setAiImageMode(tab.id as typeof aiImageMode)}
+                            style={{
+                              padding: "8px 14px", borderRadius: 8,
+                              fontSize: 13, fontWeight: isActive ? 700 : 500,
+                              cursor: "pointer", border: "none",
+                              transition: "background 0.15s, color 0.15s",
+                              background: isActive ? C.accent : "transparent",
+                              color: isActive ? "#fff" : "rgba(255,255,255,0.5)",
+                              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                            }}>
+                            {tab.label}
+                            {tab.badge && (
+                              <span style={{
+                                fontSize: 9, fontWeight: 700, padding: "1px 5px",
+                                borderRadius: 6, background: "#ef4444", color: "#fff",
+                              }}>{tab.badge}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Templates grid */}
+                  {showTemplates && <TemplatesGrid onSelectTemplate={handleSelectTemplate} />}
+
+                  {/* Image label for AI Image / Editor */}
+                  {(isAIImage && aiImageMode === "image_to_image") && (
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textSecond, marginBottom: 8 }}>
+                      Image <span style={{ fontWeight: 400 }}>(Max 5 images)</span>
+                    </div>
+                  )}
+                  {isAIImageEditor && (
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textSecond, marginBottom: 8 }}>
+                      Image
+                    </div>
+                  )}
+
+                  {/* Upload Zone */}
+                  {showUpload && (
+                    <div style={{ marginBottom: 10 }}>
+                      <StudioUploadZone mode={studioMode}
+                        file1={image1?.file ?? null} file2={image2?.file ?? null}
+                        preview1={preview1} preview2={preview2}
+                        onFile1={handleFile1} onFile2={handleFile2}
+                      />
+                    </div>
+                  )}
+
+                  {/* Inpaint button — AI Image Editor only (opens dialog) */}
+                  {isAIImageEditor && (
+                    <button
+                      onClick={() => preview1 && setInpaintOpen(true)}
+                      disabled={!preview1}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "8px 14px", marginBottom: 10, borderRadius: 10,
+                        background: maskDataUrl ? "rgba(124,58,237,0.12)" : "transparent",
+                        border: `1px solid ${maskDataUrl ? C.accent : C.panelBorder}`,
+                        color: preview1 ? C.textPrimary : C.textSecond,
+                        cursor: preview1 ? "pointer" : "not-allowed",
+                        fontSize: 13, fontWeight: 600,
+                        transition: "all 0.15s",
+                        opacity: preview1 ? 1 : 0.5,
+                        width: "100%",
+                      }}
+                    >
+                      <span style={{ color: C.accent }}>{"\u2726"}</span>
+                      Inpaint
+                      {maskDataUrl && (
+                        <span style={{
+                          marginLeft: "auto", fontSize: 10, color: C.accent,
+                          padding: "2px 8px", borderRadius: 6,
+                          background: "rgba(124,58,237,0.15)",
+                        }}>Mask Active</span>
+                      )}
+                      {!maskDataUrl && (
+                        <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+                          {preview1 ? "Click to draw mask" : "Upload image first"}
+                        </span>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Prompt label for AI Image / Editor */}
+                  {(isAIImage || isAIImageEditor) && showPrompt && (
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.textSecond, marginBottom: 6 }}>
+                      Prompt
+                    </div>
+                  )}
+
+                  {/* Prompt — always except templates */}
+                  {showPrompt && (
+                    <div style={{ marginBottom: 6 }}>
+                      <PromptArea value={prompt} onChange={setPrompt}
+                        placeholder={promptPlaceholder}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Fixed bottom: Settings + Create (or just Create for Editor) */}
+                {showSettings && (
+                  <div style={{ padding: "8px 18px 12px", borderTop: `1px solid ${C.panelBorder}`, flexShrink: 0 }}>
+                    {isAIImage ? (
+                      <ImageSettingsRow model={imgModel} ratio={imgRatio} resolution={imgResolution} outputs={imgOutputs}
+                        onModelChange={setImgModel} onRatioChange={setImgRatio}
+                        onResolutionChange={setImgResolution} onOutputsChange={setImgOutputs}
+                      />
+                    ) : (
+                      <SettingsRow quality={settingsQuality} resolution={settingsResolution}
+                        duration={settingsDuration} ratio={settingsRatio}
+                        onQualityChange={setSettingsQuality} onResolutionChange={setSettingsResolution}
+                        onDurationChange={setSettingsDuration} onRatioChange={setSettingsRatio}
+                      />
+                    )}
+                    <button onClick={handleGenerate}
+                      disabled={loading || (showUpload && !image1)}
+                      style={{
+                        width: "100%", padding: "10px 0", marginTop: 8, borderRadius: 10,
+                        fontSize: 14, fontWeight: 700, color: "#fff",
+                        border: "none", cursor: loading ? "wait" : "pointer",
+                        background: C.ctaGradient,
+                        opacity: (loading || (showUpload && !image1)) ? 0.5 : 1,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      }}
+                    >
+                      {loading ? (
+                        <><span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTopColor: "#fff", animation: "spin 0.8s linear infinite", display: "inline-block" }} /> Đang xử lý...</>
+                      ) : "Create"}
+                    </button>
+                  </div>
+                )}
+                {/* Editor: Create button only (no settings) */}
+                {isAIImageEditor && (
+                  <div style={{ padding: "8px 18px 16px", flexShrink: 0 }}>
+                    <button onClick={handleGenerate}
+                      disabled={loading || !image1}
+                      style={{
+                        width: "100%", padding: "12px 0", borderRadius: 10,
+                        fontSize: 14, fontWeight: 700, color: "#fff",
+                        border: "none", cursor: loading ? "wait" : "pointer",
+                        background: C.ctaGradient,
+                        opacity: (loading || !image1) ? 0.5 : 1,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      }}
+                    >
+                      {loading ? (
+                        <><span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTopColor: "#fff", animation: "spin 0.8s linear infinite", display: "inline-block" }} /> Đang xử lý...</>
+                      ) : "Create"}
+                    </button>
+                  </div>
                 )}
               </div>
-            )}
+            );
+          })()}
 
-            <PromptInput featureSlug={activeFeature.slug} value={prompt} onChange={setPrompt} />
+          {/* ─── RIGHT PANEL ─── */}
+          <div style={{
+            flex: 1,
+            background: C.panelBg,
+            border: `1px solid ${C.panelBorder}`,
+            borderRadius: 18,
+            display: "flex", flexDirection: "column",
+            overflow: "hidden",
+          }}>
+            {/* Header */}
+            <div style={{ padding: "14px 18px 8px", fontSize: 13, fontWeight: 600, color: C.textSecond, flexShrink: 0 }}>
+              {sidebarActiveId === "ai_image" || sidebarActiveId === "ai_image_editor"
+                ? "Sample Image" : "Sample Video"}
+            </div>
 
-            {/* Quality */}
-            <div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2 mono">Quality</p>
-              <div className="flex gap-2">
-                {(["sd", "hd"] as const).map((q: JobQuality) => (
-                  <button
-                    key={q}
-                    onClick={() => setQuality(q)}
-                    className="px-5 py-2 rounded-lg text-sm font-bold uppercase mono transition-all"
-                    style={
-                      quality === q
-                        ? { border: "1px solid #a78bfa", color: "#a78bfa", background: "rgba(167,139,250,0.08)" }
-                        : { border: "1px solid #2a2a2a", color: "rgba(255,255,255,0.3)", background: "transparent" }
-                    }
-                  >
-                    {q}{q === "hd" && <span className="ml-1 text-[9px] opacity-60">2×</span>}
-                  </button>
+            {/* Preview */}
+            <div style={{
+              flex: 1, margin: "0 14px",
+              borderRadius: 10, background: C.uploadBg,
+              border: `1px solid ${C.panelBorder}`,
+              overflow: "hidden", display: "flex",
+              alignItems: "center", justifyContent: "center",
+              minHeight: 0,
+            }}>
+              {loading && (
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", border: `3px solid rgba(60,162,246,0.2)`, borderTopColor: C.accent, animation: "spin 0.8s linear infinite", margin: "0 auto 10px" }} />
+                  <div style={{ fontSize: 12, color: C.textMuted }}>Video generating...</div>
+                </div>
+              )}
+              {!loading && latest && (
+                <img src={latest.outputUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              )}
+              {!loading && !latest && (
+                <div style={{ textAlign: "center", padding: 20 }}>
+                  <div style={{ fontSize: 32, opacity: 0.12, marginBottom: 8 }}>🖼️</div>
+                  <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>
+                    Upload ảnh và nhấn &quot;Create&quot;<br/>để xem kết quả ở đây
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Prompt text */}
+            <div style={{
+              padding: "8px 18px", fontSize: 11, color: C.textSecond,
+              lineHeight: 1.5, flexShrink: 0,
+              borderBottom: `1px solid ${C.panelBorder}`,
+            }}>
+              <span style={{ color: C.textMuted }}>Prompt: </span>
+              {latest ? latest.featureName : (prompt.slice(0, 120) || "...")}
+            </div>
+
+            {/* Carousel */}
+            <div style={{ padding: "10px 6px 12px", flexShrink: 0, position: "relative" }}>
+              <button onClick={() => scrollCarousel("left")} style={{
+                position: "absolute", left: 2, top: "50%", transform: "translateY(-50%)", zIndex: 5,
+                width: 26, height: 26, borderRadius: "50%",
+                background: C.pageBg, border: `1px solid ${C.panelBorder}`,
+                color: "#fff", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <ChevronLeft size={13} />
+              </button>
+              <button onClick={() => scrollCarousel("right")} style={{
+                position: "absolute", right: 2, top: "50%", transform: "translateY(-50%)", zIndex: 5,
+                width: 26, height: 26, borderRadius: "50%",
+                background: C.pageBg, border: `1px solid ${C.panelBorder}`,
+                color: "#fff", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <ChevronRight size={13} />
+              </button>
+
+              <div ref={carouselRef} style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", padding: "0 28px" }}>
+                {AI_FEATURES.map(f => (
+                  <CarouselThumb key={f.slug} feature={f} onSelect={() => switchFeature(f)} />
                 ))}
               </div>
             </div>
-
-            <SizePresets
-              selectedIndex={selectedPresetIdx}
-              isCustom={isCustomSize}
-              customW={customW}
-              customH={customH}
-              orientation={orientation}
-              onSelectPreset={selectPreset}
-              onCustom={() => setIsCustomSize(true)}
-              onCustomWChange={setCustomW}
-              onCustomHChange={setCustomH}
-              onOrientationChange={setOrientation}
-            />
-
-            {/* Public toggle */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-white">Chia sẻ công khai</p>
-                <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>Ảnh xuất hiện trong Gallery</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPublic(!isPublic)}
-                className="relative inline-flex items-center rounded-full transition-all"
-                style={{ width: "44px", height: "24px", background: isPublic ? "#a78bfa" : "#2a2a2a" }}
-              >
-                <span
-                  className="absolute rounded-full bg-white shadow transition-transform"
-                  style={{ width: "18px", height: "18px", transform: `translateX(${isPublic ? "23px" : "3px"})` }}
-                />
-              </button>
-            </div>
-
-            <p className="text-[11px] mono" style={{ color: "rgba(255,255,255,0.18)" }}>
-              Output: {currentW} × {currentH}px · {quality.toUpperCase()} · {orientation}
-            </p>
           </div>
-
-          {/* Generate button (sticky bottom) */}
-          <div className="sticky bottom-0 px-6 pb-6 pt-3" style={{ background: "linear-gradient(to top, #0a0a0a 70%, transparent)" }}>
-            <button
-              onClick={handleGenerate}
-              disabled={loading || (activeFeature.imageCount > 0 && !image1)}
-              className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              style={{
-                background: loading ? "#1a1a1a" : "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)",
-                boxShadow: loading ? "none" : "0 4px 24px rgba(124,58,237,0.4)",
-              }}
-            >
-              {loading ? (
-                <>
-                  <span className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                  AI đang xử lý... 
-                </>
-              ) : (
-                <>
-                  <Zap size={15} />
-                  Tạo ảnh
-                </>
-              )}
-            </button>
-          </div>
-        </main>
-
-        {/* Drag handle (resize result panel) */}
-        <div
-          onMouseDown={resultPanel.onMouseDown}
-          className="shrink-0 flex items-center justify-center hover:bg-white/5 transition-colors cursor-col-resize group"
-          style={{ width: "4px", background: "#1c1c1c" }}
-        >
-          <div className="w-0.5 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "#a78bfa" }} />
-        </div>
-
-        {/* Col 4 — Result panel (resizable) */}
-        <div style={{ width: resultPanel.width }}>
-          <ResultPanel results={results} loading={loading} />
         </div>
       </div>
 
-      {/* ── Mobile layout ── */}
-      <div className="lg:hidden flex flex-col flex-1 min-h-0 overflow-hidden">
-        {/* Tab bar */}
-        <div className="flex border-b shrink-0" style={{ borderColor: "#1c1c1c", background: "#0a0a0a" }}>
+      {/* Mobile sidebar drawer */}
+      {mobileSidebarOpen && (
+        <div className="lg:hidden" onClick={() => setMobileSidebarOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 100,
+            background: "rgba(0,0,0,0.6)",
+            animation: "sidebar-fade-in 0.2s ease-out",
+          }}>
+          <style>{`
+            @keyframes sidebar-fade-in { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes sidebar-slide-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+          `}</style>
+          <aside onClick={e => e.stopPropagation()} style={{
+            position: "absolute", top: 0, left: 0, bottom: 0,
+            width: 260, background: "#060A0C", borderRight: "1px solid #1D2127",
+            overflow: "auto",
+            animation: "sidebar-slide-in 0.25s cubic-bezier(0.16,1,0.3,1)",
+          }}>
+            <SidebarContent activeId={sidebarActiveId} onSelectItem={(id) => {
+              setSidebarActiveId(id);
+              setMobileSidebarOpen(false);
+            }} onClose={() => setMobileSidebarOpen(false)} />
+          </aside>
+        </div>
+      )}
+
+      {/* ═══ MOBILE / TABLET ═══ */}
+      <div className="lg:hidden flex flex-col" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        {/* Top nav with sidebar toggle */}
+        <div style={{ display: "flex", borderBottom: `1px solid ${C.panelBorder}`, background: C.pageBg, flexShrink: 0 }}>
+          {/* Sidebar toggle */}
+          <button onClick={() => setMobileSidebarOpen(true)}
+            style={{
+              padding: "10px 14px", fontSize: 13, cursor: "pointer", border: "none",
+              background: "transparent", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center",
+              borderRight: `1px solid ${C.panelBorder}`,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1"/>
+              <rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/>
+              <rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+          </button>
           {(["form", "result"] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setMobileView(tab)}
-              className="flex-1 py-3 text-xs font-bold uppercase mono tracking-widest transition-colors"
-              style={mobileView === tab
-                ? { color: "#a78bfa", borderBottom: "2px solid #a78bfa" }
-                : { color: "rgba(255,255,255,0.3)", borderBottom: "2px solid transparent" }
-              }
-            >
-              {tab === "form" ? `✦ ${activeFeature.name}` : `Kết quả${results.length ? ` · ${results.length}` : ""}`}
+            <button key={tab} onClick={() => setMobileView(tab)} style={{
+              flex: 1, padding: "10px 0", fontSize: 11, fontWeight: 700,
+              textTransform: "uppercase", letterSpacing: "0.1em",
+              cursor: "pointer", border: "none", background: "transparent",
+              color: mobileView === tab ? C.accent : "rgba(255,255,255,0.35)",
+              borderBottom: mobileView === tab ? `2px solid ${C.accent}` : "2px solid transparent",
+            }}>
+              {tab === "form"
+                ? `✦ ${({
+                    image_to_video: "Image to Video",
+                    text_to_video: "Text to Video",
+                    ai_image: "AI Image",
+                    ai_image_editor: "AI Image Editor",
+                    ai_video_editor: "AI Video Editor",
+                    ai_avatar: "AI Avatar",
+                    ai_music: "AI Music",
+                    text_to_speech: "Text To Speech",
+                  } as Record<string, string>)[sidebarActiveId] || activeFeature.name}`
+                : `Kết quả${results.length ? ` · ${results.length}` : ""}`}
             </button>
           ))}
         </div>
 
-        {/* Mobile — Feature select pill */}
         {mobileView === "form" && (
-          <div className="shrink-0 px-4 py-2 flex gap-2 overflow-x-auto" style={{ background: "#0f0f0f", borderBottom: "1px solid #1c1c1c" }}>
-            {AI_FEATURES.map(f => (
-              <button
-                key={f.slug}
-                onClick={() => switchFeature(f)}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                style={activeFeature.slug === f.slug
-                  ? { background: "rgba(167,139,250,0.15)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.3)" }
-                  : { background: "transparent", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }
-                }
-              >
-                <FIcon slug={f.slug} size={12} />
-                {f.name}
-              </button>
-            ))}
-          </div>
-        )}
+          <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Video modes: tabs + upload + prompt + settings */}
+            {(sidebarActiveId === "image_to_video") && (
+              <StudioTabs active={studioMode} onChange={setStudioMode} />
+            )}
 
-        {/* Mobile — Form view */}
-        {mobileView === "form" && (
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4 flex flex-col gap-5 pb-32">
-              {activeFeature.imageCount > 0 && (
-                <div className={`grid gap-3 ${activeFeature.imageCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-                  <UploadZone label="Ảnh chính" file={image1} onFile={makeUploadHandler(setImage1)} onClear={() => setImage1(null)} />
-                  {activeFeature.imageCount === 2 && (
-                    <UploadZone label="Ảnh tham chiếu" file={image2} onFile={makeUploadHandler(setImage2)} onClear={() => setImage2(null)} />
-                  )}
-                </div>
-              )}
-              <PromptInput featureSlug={activeFeature.slug} value={prompt} onChange={setPrompt} />
-              {/* Quality */}
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: "rgba(255,255,255,0.5)" }}>Chất lượng</p>
-                <div className="flex gap-2">
-                  {(["sd", "hd"] as const).map(q => (
-                    <button key={q} onClick={() => setQuality(q)}
-                      className="px-4 py-2 rounded-lg text-sm font-bold uppercase mono transition-all"
-                      style={quality === q
-                        ? { border: "1px solid #a78bfa", color: "#a78bfa", background: "rgba(167,139,250,0.08)" }
-                        : { border: "1px solid #2a2a2a", color: "rgba(255,255,255,0.3)", background: "transparent" }
-                      }>
-                      {q}
-                    </button>
-                  ))}
-                </div>
+            {/* AI Image: custom tabs */}
+            {sidebarActiveId === "ai_image" && (
+              <div style={{
+                display: "flex", gap: 4, background: "#151A1F", borderRadius: 10, padding: 3,
+                border: `1px solid ${C.panelBorder}`,
+              }}>
+                {([
+                  { id: "image_to_image" as const, label: "Image to Image" },
+                  { id: "text_to_image" as const, label: "Text to Image" },
+                  { id: "templates" as const, label: "Templates" },
+                ]).map(tab => {
+                  const active = aiImageMode === tab.id;
+                  return (
+                    <button key={tab.id}
+                      onClick={() => setAiImageMode(tab.id as typeof aiImageMode)}
+                      style={{
+                        padding: "8px 10px", borderRadius: 8, fontSize: 12, fontWeight: active ? 700 : 500,
+                        cursor: "pointer", border: "none", flex: 1,
+                        background: active ? C.accent : "transparent",
+                        color: active ? "#fff" : "rgba(255,255,255,0.5)",
+                        transition: "all 0.15s",
+                      }}>{tab.label}</button>
+                  );
+                })}
               </div>
+            )}
 
-              {/* Size + Orientation */}
-              <SizePresets
-                selectedIndex={selectedPresetIdx}
-                isCustom={isCustomSize}
-                customW={customW}
-                customH={customH}
-                orientation={orientation}
-                onSelectPreset={(i) => { setSelectedPresetIdx(i); setIsCustomSize(false); }}
-                onCustom={() => setIsCustomSize(true)}
-                onCustomWChange={setCustomW}
-                onCustomHChange={setCustomH}
-                onOrientationChange={setOrientation}
-              />
+            {/* Templates */}
+            {((sidebarActiveId === "image_to_video" && studioMode === "templates")
+              || (sidebarActiveId === "ai_image" && aiImageMode === "templates")) ? (
+              <TemplatesGrid onSelectTemplate={handleSelectTemplate} />
+            ) : (
+              <>
+                {/* Upload zone */}
+                {(sidebarActiveId !== "text_to_video"
+                  && !(sidebarActiveId === "ai_image" && aiImageMode === "text_to_image")) && (
+                  <StudioUploadZone mode={studioMode} file1={image1?.file ?? null} file2={image2?.file ?? null}
+                    preview1={preview1} preview2={preview2} onFile1={handleFile1} onFile2={handleFile2} />
+                )}
 
-              {/* Public toggle */}
-              <div className="flex items-center justify-between py-3 border-t" style={{ borderColor: "#1c1c1c" }}>
-                <div>
-                  <p className="text-sm font-semibold text-white">Chia sẻ công khai</p>
-                  <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>Ảnh xuất hiện trong Gallery</p>
-                </div>
-                <button
-                  onClick={() => setIsPublic(!isPublic)}
-                  className="relative rounded-full transition-colors shrink-0 overflow-hidden"
-                  style={{ width: "44px", height: "24px", background: isPublic ? "#a78bfa" : "#2a2a2a" }}
-                >
-                  <span className="absolute rounded-full bg-white shadow transition-all duration-200"
-                    style={{ width: "18px", height: "18px", top: "3px", left: isPublic ? "23px" : "3px" }} />
+                {/* Inpaint button — AI Image Editor */}
+                {sidebarActiveId === "ai_image_editor" && (
+                  <button
+                    onClick={() => preview1 && setInpaintOpen(true)}
+                    disabled={!preview1}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "10px 14px", borderRadius: 10, width: "100%",
+                      background: maskDataUrl ? "rgba(124,58,237,0.12)" : "transparent",
+                      border: `1px solid ${maskDataUrl ? C.accent : C.panelBorder}`,
+                      color: preview1 ? "#fff" : C.textSecond,
+                      cursor: preview1 ? "pointer" : "not-allowed",
+                      fontSize: 13, fontWeight: 600, opacity: preview1 ? 1 : 0.5,
+                    }}
+                  >
+                    <span style={{ color: C.accent }}>{"\u2726"}</span>
+                    Inpaint
+                    <span style={{ marginLeft: "auto", fontSize: 11, color: maskDataUrl ? C.accent : "rgba(255,255,255,0.3)" }}>
+                      {maskDataUrl ? "Mask Active" : preview1 ? "Draw mask" : "Upload first"}
+                    </span>
+                  </button>
+                )}
+
+                {/* Prompt */}
+                <PromptArea value={prompt} onChange={setPrompt} />
+
+                {/* Settings */}
+                {sidebarActiveId !== "ai_image_editor" && (
+                  sidebarActiveId === "ai_image" ? (
+                    <ImageSettingsRow model={imgModel} ratio={imgRatio} resolution={imgResolution} outputs={imgOutputs}
+                      onModelChange={setImgModel} onRatioChange={setImgRatio}
+                      onResolutionChange={setImgResolution} onOutputsChange={setImgOutputs} />
+                  ) : (
+                    <SettingsRow quality={settingsQuality} resolution={settingsResolution} duration={settingsDuration}
+                      ratio={settingsRatio} onQualityChange={setSettingsQuality} onResolutionChange={setSettingsResolution}
+                      onDurationChange={setSettingsDuration} onRatioChange={setSettingsRatio} />
+                  )
+                )}
+
+                {/* Create */}
+                <button onClick={handleGenerate} disabled={loading || (activeFeature.imageCount > 0 && !image1)}
+                  style={{
+                    width: "100%", padding: "12px 0", borderRadius: 10, fontSize: 14, fontWeight: 700,
+                    color: "#fff", border: "none", cursor: "pointer",
+                    background: C.ctaGradient,
+                    opacity: (loading || (activeFeature.imageCount > 0 && !image1)) ? 0.5 : 1,
+                  }}>
+                  {loading ? "Đang xử lý..." : "Create"}
                 </button>
-              </div>
-            </div>
-
-            <div className="sticky bottom-0 px-4 pb-4 pt-2" style={{ background: "linear-gradient(to top, #0a0a0a 70%, transparent)" }}>
-              <button
-                onClick={handleGenerate}
-                disabled={loading || (activeFeature.imageCount > 0 && !image1)}
-                className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2"
-                style={{ background: loading ? "#1a1a1a" : "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)", boxShadow: "0 4px 24px rgba(124,58,237,0.3)" }}
-              >
-                {loading ? <><span className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />Đang xử lý...</> : <><Zap size={14} />Tạo ảnh · {activeFeature.credits} credits</>}
-              </button>
-            </div>
+              </>
+            )}
           </div>
         )}
 
-        {/* Mobile — Result view */}
         {mobileView === "result" && (
-          <div className="flex-1 overflow-hidden">
-            <ResultPanel results={results} loading={loading} />
+          <div style={{ flex: 1, overflow: "auto", padding: 14 }}>
+            {results.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
+                Chưa có kết quả. Hãy tạo ảnh trước!
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+                {results.map(r => (
+                  <img key={r.id} src={r.outputUrl} alt="" style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.panelBorder}` }} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
+    </div>
+
+      {/* Inpaint Dialog Modal */}
+      {preview1 && (
+        <InpaintDialog
+          open={inpaintOpen}
+          imageSrc={preview1}
+          onClose={(mask) => {
+            setInpaintOpen(false);
+            setMaskDataUrl(mask);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/* ── Carousel Thumb ── */
+const GRADIENTS: Record<string, string> = {
+  insert_object:    "linear-gradient(135deg, #667eea, #764ba2)",
+  swap_swimsuit:    "linear-gradient(135deg, #4facfe, #00f2fe)",
+  swap_face:        "linear-gradient(135deg, #fa709a, #fee140)",
+  swap_shirt:       "linear-gradient(135deg, #a18cd1, #fbc2eb)",
+  change_color:     "linear-gradient(135deg, #ffecd2, #fcb69f)",
+  extract_clothing: "linear-gradient(135deg, #a1c4fd, #c2e9fb)",
+  to_anime:         "linear-gradient(135deg, #f093fb, #f5576c)",
+  drawing_to_photo: "linear-gradient(135deg, #43e97b, #38f9d7)",
+  restore_photo:    "linear-gradient(135deg, #fbc2eb, #a6c1ee)",
+  swap_background:  "linear-gradient(135deg, #89f7fe, #66a6ff)",
+  text_to_image:    "linear-gradient(135deg, #7c3aed, #a78bfa)",
+};
+
+function CarouselThumb({ feature, onSelect }: { feature: AIFeature; onSelect: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div onClick={onSelect} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative", width: 100, minWidth: 100, height: 68,
+        borderRadius: 8, overflow: "hidden", cursor: "pointer", flexShrink: 0,
+        background: GRADIENTS[feature.slug] ?? GRADIENTS.insert_object,
+        border: hovered ? `2px solid #7c3aed` : `2px solid #252D36`,
+        transition: "border-color 0.15s",
+      }}
+    >
+      {hovered && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 6, background: "#7c3aed", color: "#fff", fontSize: 10, fontWeight: 700 }}>
+            <Play size={9} fill="#fff" /> Create
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function StudioPage() {
-  return (
-    <Suspense>
-      <StudioInner />
-    </Suspense>
-  );
+  return <Suspense><StudioInner /></Suspense>;
 }

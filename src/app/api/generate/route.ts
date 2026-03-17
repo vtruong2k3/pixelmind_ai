@@ -3,23 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { submitTask } from "@/lib/chainhub";
 import { hasMinRole } from "@/lib/roles";
-
-// ── In-memory rate limiter: 5 requests / user / 60s ──────────────────────
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 5;
-const RATE_WINDOW_MS = 60_000; // 1 minute
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true; // allowed
-  }
-  if (entry.count >= RATE_LIMIT) return false; // blocked
-  entry.count++;
-  return true; // allowed
-}
+import { checkRateLimit } from "@/lib/rate-limiter";
 
 
 // POST /api/generate
@@ -35,16 +19,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const userId  = session.user.id;
-    const role    = (session.user as any).role ?? "USER";
+    const role    = session.user.role ?? "USER";
     // STAFF và ADMIN đều được miễn credit
     const isAdmin = hasMinRole(role, "STAFF");
 
     // Rate limit: chỉ áp dụng cho USER thường (STAFF/ADMIN bỏ qua)
-    if (!isAdmin && !checkRateLimit(userId)) {
-      return NextResponse.json(
-        { error: "Bạn đang tạo ảnh quá nhanh. Vui lòng chờ 1 phút trước khi thử lại." },
-        { status: 429 }
-      );
+    if (!isAdmin) {
+      const rl = checkRateLimit(userId);
+      if (!rl.allowed) {
+        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        return NextResponse.json(
+          { error: "Bạn đang tạo ảnh quá nhanh. Vui lòng chờ 1 phút trước khi thử lại." },
+          { status: 429, headers: { "Retry-After": String(retryAfterSecs) } }
+        );
+      }
     }
 
     // 2. Parse form
@@ -133,20 +121,22 @@ export async function POST(req: NextRequest) {
     }
 
     // 7. Tạo Job + trừ credits ngay trong 1 transaction
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbOps: any[] = [
       prisma.job.create({
         data: {
           userId,
-          featureId:   featureParams.id,
-          featureSlug: featureParams.slug,
-          featureName: featureParams.name,
-          promptUsed:  finalPrompt,
-          inputUrls:   [],
+          featureId:      featureParams.id,
+          featureSlug:    featureParams.slug,
+          featureName:    featureParams.name,
+          promptUsed:     finalPrompt,
+          inputUrls:      [],
           quality,
           orientation,
           isPublic,
-          status:      "PROCESSING",
-          creditUsed:  featureParams.creditCost,
+          status:         "PROCESSING",
+          creditUsed:     featureParams.creditCost,
+          chainhubTaskId: taskId,
         },
       }),
     ];
@@ -169,12 +159,6 @@ export async function POST(req: NextRequest) {
     }
 
     const [job] = await prisma.$transaction(dbOps);
-
-    // Lưu chainhubTaskId riêng (Prisma client types chưa cập nhật)
-    await prisma.$executeRaw`
-      UPDATE "Job" SET "chainhubTaskId" = ${taskId}, "updatedAt" = NOW()
-      WHERE id = ${job.id}
-    `;
 
     // 8. Trả về ngay — frontend sẽ poll status
     return NextResponse.json({

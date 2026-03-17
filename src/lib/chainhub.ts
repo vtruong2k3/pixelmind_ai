@@ -22,7 +22,7 @@ function toBlob(data: Uint8Array | Blob, type = "image/png"): Blob {
 
 // ──────────────────────────────────────────────────────────
 // Bước 1: Submit task → nhận task_id (EXPORT để generate route dùng)
-// POST https://generate.chainhub.tech/images/edits
+// POST https://generate.chainhub.tech/xxxxxx
 // Response: { task_id: "xxx", status: "PROCESSING", ... }
 // ──────────────────────────────────────────────────────────
 export async function submitTask(params: GenerateParams): Promise<string | null> {
@@ -82,7 +82,7 @@ export async function submitTask(params: GenerateParams): Promise<string | null>
 
 // ──────────────────────────────────────────────────────────
 // Bước 2: Poll trạng thái task
-// GET https://generate.chainhub.tech/images/edits/{task_id}
+// GET https://generate.chainhub.tech/xxxxxxxx/{task_id}
 // Response khi xong:
 // {
 //   task_id: "...", status: "COMPLETED",
@@ -161,14 +161,9 @@ async function pollTask(
 export async function pollOnce(
   taskId: string
 ): Promise<{ status: string; outputUrl?: string } | null> {
-  // Thay url để fix trường hợp url chainhub endpoint
-  const baseURL = CHAINHUB_BASE.replace('/edits', '');
-  const statusUrl = `${baseURL}/tasks/${taskId}`; // Hoặc thử xem API cung cấp query endpoint dạng nào. Tạm giữ code cũ vì trước đây code cũ là CHAINHUB_BASE/${taskId} 
-
-  // GIỮ NGUYÊN CODE CŨ DO API KHÔNG PHÂN BIỆT
-  const currentStatusUrl = `${CHAINHUB_BASE}/${taskId}`;
+  const statusUrl = `${CHAINHUB_BASE}/${taskId}`;
   try {
-    const res = await axios.get<PollResult>(currentStatusUrl, {
+    const res = await axios.get<PollResult>(statusUrl, {
       headers: { Authorization: `Bearer ${CHAINHUB_API_KEY}` },
       responseType: "json",
       timeout: 12_000,

@@ -3,11 +3,29 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { createBlogSchema } from "@/lib/schemas/blog";
 
+/**
+ * Sạch HTML cơ bản để chống XSS.
+ * Chỉ cho phép các tag an toàn, loại bỏ script, event handler, href javascript:.
+ */
+function sanitizeHtml(html: string): string {
+  return html
+    // Xóa script và style block
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    // Xóa event handler attributes (onclick, onload, ...)
+    .replace(/\s+on\w+\s*=\s*(["'])[^"']*\1/gi, "")
+    // Xóa javascript: URLs
+    .replace(/href\s*=\s*(["'])\s*javascript:[^"']*\1/gi, "")
+    // Xóa iframe, object, embed
+    .replace(/<\s*(iframe|object|embed|form|input|button)\b[^>]*>.*?<\/\1>/gi, "")
+    .trim();
+}
+
 // GET /api/admin/blogs?page=1&limit=10&search=
 export async function GET(req: Request) {
   try {
     const session = await auth();
-    if (!session?.user || (session.user as any).role === "USER") {
+    if (!session?.user || session.user.role === "USER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -72,6 +90,7 @@ export async function POST(req: Request) {
     }
 
     const { title, slug, excerpt, content, coverImage, published } = parsed.data;
+    const safeContent = sanitizeHtml(content);
 
     const existing = await prisma.post.findUnique({ where: { slug } });
     if (existing) {
@@ -83,7 +102,7 @@ export async function POST(req: Request) {
         title,
         slug,
         excerpt:     excerpt    || null,
-        content,
+        content:     safeContent,
         coverImage:  coverImage || null,
         published:   published  ?? false,
         authorId:    session.user.id!,

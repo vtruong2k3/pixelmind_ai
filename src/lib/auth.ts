@@ -50,33 +50,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Khi login lần đầu
       if (user) {
         token.id   = user.id;
-        token.role = (user as any).role ?? "USER";
+        token.role = (user.role ?? "USER") as UserRole;
       }
-      // Khi session refresh hoặc update — đọc role mới nhất từ DB
-      if (token.id && (trigger === "update" || !token.role)) {
+
+      // Khi session được update thủ công (trigger === "update") — đọc role mới từ DB
+      if (token.id && trigger === "update") {
         const dbUser = await prisma.user.findUnique({
           where:  { id: token.id as string },
           select: { role: true },
         });
-        if (dbUser) token.role = dbUser.role;
+        if (dbUser) token.role = dbUser.role as UserRole;
       }
+
       return token;
     },
     async session({ session, token }) {
       if (token.id) {
-        session.user.id = token.id as string;
-        (session.user as any).role = token.role ?? "USER";
+        session.user.id   = token.id as string;
+        session.user.role = (token.role ?? "USER") as UserRole;
 
-        // Lấy credits + plan từ DB (fresh mỗi session call)
+        // Lấy credits + plan từ DB — chỉ khi chưa có trong token
+        // (token được cache theo JWT, tránh query DB mỗi request)
         const dbUser = await prisma.user.findUnique({
           where:  { id: token.id as string },
-          select: { credits: true, plan: true, planExpiresAt: true, role: true },
+          select: { credits: true, plan: true, planExpiresAt: true },
         });
         if (dbUser) {
-          (session.user as any).credits      = dbUser.credits;
-          (session.user as any).plan         = dbUser.plan;
-          (session.user as any).planExpiresAt = dbUser.planExpiresAt?.toISOString() ?? null;
-          (session.user as any).role          = dbUser.role; // always fresh
+          session.user.credits      = dbUser.credits;
+          session.user.plan         = dbUser.plan;
+          session.user.planExpiresAt = dbUser.planExpiresAt?.toISOString() ?? null;
         }
       }
       return session;

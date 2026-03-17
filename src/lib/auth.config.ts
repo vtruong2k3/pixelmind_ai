@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import type { UserRole } from "@/lib/roles";
 
 /**
  * auth.config.ts — Edge-compatible auth config (NO Prisma/Node.js imports)
@@ -19,12 +20,12 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, user }) {
       if (user) {
         token.id   = user.id;
-        token.role = (user as any).role ?? "USER";
+        token.role = (user.role ?? "USER") as UserRole;
       }
       return token;
     },
     async session({ session, token }) {
-      (session.user as any).role = token.role ?? "USER";
+      session.user.role = (token.role ?? "USER") as UserRole;
       if (token.id) session.user.id = token.id as string;
       return session;
     },

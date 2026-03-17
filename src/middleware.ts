@@ -10,7 +10,7 @@ export default auth(function middleware(req) {
   const { nextUrl } = req;
   const session     = req.auth;
   const isLoggedIn  = !!session?.user;
-  const role        = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role        = session?.user?.role ?? "USER";
   const pathname    = nextUrl.pathname;
 
   // Helper: forward pathname header để Server Components đọc được
