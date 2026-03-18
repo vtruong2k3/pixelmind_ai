@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { PLANS } from "@/lib/payment";
 
-// ── Gói tháng mới (monthly subscription) ──
-export const PAYPAL_PLANS = {
-  starter: { credits: 500,  amountUSD: "24.00", name: "Starter — 500 Credits/tháng",  planKey: "starter" },
-  pro:     { credits: 1500, amountUSD: "66.00", name: "Pro — 1500 Credits/tháng",      planKey: "pro"     },
-  max:     { credits: 4000, amountUSD: "100.00",name: "Max — 4000 Credits/tháng",      planKey: "max"     },
-};
+// Re-export for backward compat (capture-order imports from here)
+export const PAYPAL_PLANS = PLANS;
 
 async function getPayPalAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID!;
@@ -36,7 +33,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { planId } = await req.json();
-    const plan = PAYPAL_PLANS[planId as keyof typeof PAYPAL_PLANS];
+    const plan = PLANS[planId as keyof typeof PLANS];
     if (!plan) {
       return NextResponse.json({ error: "Plan không hợp lệ" }, { status: 400 });
     }
