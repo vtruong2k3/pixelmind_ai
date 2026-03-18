@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireRoleResponse } from "@/lib/roles";
+import { logAudit } from "@/lib/audit";
 
 // GET /api/admin/users/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -14,7 +15,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     where: { id },
     select: {
       id: true, name: true, email: true, image: true,
-      role: true, credits: true, plan: true, planExpiresAt: true, createdAt: true,
+      role: true, credits: true, plan: true, planExpiresAt: true,
+      isBanned: true, banReason: true,
+      createdAt: true,
       jobs: { orderBy: { createdAt: "desc" }, take: 10, select: { id: true, featureName: true, status: true, creditUsed: true, createdAt: true } },
       creditTransactions: { orderBy: { createdAt: "desc" }, take: 10, select: { id: true, amount: true, type: true, description: true, createdAt: true } },
     },
@@ -31,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const allowed = ["role", "credits", "plan"];
+  const allowed = ["role", "credits", "plan", "isBanned", "banReason"];
   const data: any = {};
   for (const k of allowed) { if (k in body) data[k] = body[k]; }
 
@@ -53,10 +56,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         data: { userId: id, amount: body.creditAmount, type: body.creditAmount > 0 ? "bonus" : "spend", description: body.creditDescription ?? "Admin adjustment" },
       }),
     ]);
+    logAudit({ action: "gift_credits", actorId: session!.user!.id!, actorEmail: session!.user!.email!, targetType: "user", targetId: id, targetLabel: user.email, details: { amount: body.creditAmount, description: body.creditDescription } });
     return NextResponse.json({ ok: true, user });
   }
 
   const user = await prisma.user.update({ where: { id }, data });
+  // Log audit for notable changes
+  if (data.isBanned !== undefined) {
+    logAudit({ action: data.isBanned ? "ban_user" : "unban_user", actorId: session!.user!.id!, actorEmail: session!.user!.email!, targetType: "user", targetId: id, targetLabel: user.email, details: { banReason: data.banReason } });
+  }
+  if (data.role) {
+    logAudit({ action: "update_role", actorId: session!.user!.id!, actorEmail: session!.user!.email!, targetType: "user", targetId: id, targetLabel: user.email, details: { newRole: data.role } });
+  }
   return NextResponse.json({ ok: true, user });
 }
 
@@ -70,6 +81,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (id === session!.user!.id) {
     return NextResponse.json({ error: "Không thể tự xóa chính mình" }, { status: 400 });
   }
+  const user = await prisma.user.findUnique({ where: { id }, select: { email: true } });
   await prisma.user.delete({ where: { id } });
+  logAudit({ action: "delete_user", actorId: session!.user!.id!, actorEmail: session!.user!.email!, targetType: "user", targetId: id, targetLabel: user?.email ?? id });
   return NextResponse.json({ ok: true });
 }

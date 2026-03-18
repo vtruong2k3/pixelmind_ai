@@ -35,7 +35,9 @@ export async function GET(req: NextRequest) {
       take: limit,
       select: {
         id: true, name: true, email: true, image: true,
-        role: true, credits: true, plan: true, planExpiresAt: true, createdAt: true,
+        role: true, credits: true, plan: true, planExpiresAt: true,
+        isBanned: true, banReason: true,
+        createdAt: true,
         _count: { select: { jobs: true, creditTransactions: true } },
       },
     }),

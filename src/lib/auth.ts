@@ -29,6 +29,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
 
+        // Kiểm tra user bị ban
+        if (user.isBanned) {
+          throw new Error(user.banReason ?? "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.");
+        }
+
         // Bỏ qua check emailVerified cho ADMIN và STAFF (tạo bằng script)
         const isAdminOrStaff = user.role === "ADMIN" || user.role === "STAFF";
         if (!isAdminOrStaff && !user.emailVerified) {

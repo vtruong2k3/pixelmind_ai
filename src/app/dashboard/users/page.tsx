@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Loader2, RefreshCw, Shield, Trash2,
   ChevronLeft, ChevronRight, Filter, ChevronsLeft, ChevronsRight,
   Crown, ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, X,
-  AlertTriangle, Gift, UserCog, Package, ChevronDown,
+  AlertTriangle, Gift, UserCog, Package, ChevronDown, Ban, Eye, Download,
 } from "lucide-react";
 import { adminService, type AdminUser } from "@/services/adminService";
 import { ROLE_LABELS, ROLE_COLORS, type UserRole } from "@/lib/roles";
@@ -18,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useDashboardStore } from "@/store/dashboardStore";
+import { exportCSV, flattenUser } from "@/lib/export-csv";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -92,7 +94,8 @@ function SortIcon({ field, sortBy, order }: { field: string; sortBy: string; ord
 
 type SortField = "createdAt" | "credits" | "jobs";
 
-export default function DashboardUsersPage() {
+export default function AdminUsersPage() {
+  const router = useRouter();
   const qc = useQueryClient();
 
   const { usersFilter, setUsersFilter } = useDashboardStore();
@@ -309,6 +312,17 @@ export default function DashboardUsersPage() {
             <X size={12} className="mr-1" /> Xóa bộ lọc
           </Button>
         )}
+        <Button size="sm" variant="outline"
+          onClick={() => {
+            const users = data?.users ?? [];
+            if (users.length === 0) return;
+            exportCSV(users.map(flattenUser), "pixelmind_users");
+          }}
+          disabled={!data?.users?.length}
+          className="h-9 text-xs ml-auto"
+          style={{ borderColor: "#27272a", color: "#a1a1aa", background: "#18181b" }}>
+          <Download size={11} className="mr-1.5" /> Export CSV
+        </Button>
       </div>
 
       {/* ── Table ─────────────────────────────────────────────────────── */}
@@ -391,14 +405,29 @@ export default function DashboardUsersPage() {
                       {/* User */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <Avatar className="w-8 h-8 shrink-0">
-                            <AvatarImage src={u.image ?? ""} />
-                            <AvatarFallback className="text-[11px] bg-zinc-800 text-zinc-400">
-                              {u.name?.[0]?.toUpperCase() ?? "U"}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative shrink-0">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={u.image ?? ""} />
+                              <AvatarFallback className="text-[11px] bg-zinc-800 text-zinc-400">
+                                {u.name?.[0]?.toUpperCase() ?? "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            {u.isBanned && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 flex items-center justify-center" title="Bị khóa">
+                                <Ban size={9} className="text-white" />
+                              </div>
+                            )}
+                          </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-white truncate max-w-[160px]">{u.name ?? "—"}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-semibold text-white truncate max-w-[140px] cursor-pointer hover:text-red-400 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/users/${u.id}`); }}>
+                                {u.name ?? "—"}
+                              </p>
+                              {u.isBanned && (
+                                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 shrink-0">KHÓA</span>
+                              )}
+                            </div>
                             <p className="text-[10px] truncate max-w-[160px]" style={{ color: "#52525b" }}>{u.email}</p>
                           </div>
                         </div>
@@ -434,9 +463,26 @@ export default function DashboardUsersPage() {
                       {/* Actions */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => router.push(`/dashboard/users/${u.id}`)}
+                            className="h-7 px-2 text-zinc-500 hover:text-white hover:bg-zinc-800" title="Xem chi tiết">
+                            <Eye size={11} />
+                          </Button>
                           <Button size="sm" variant="ghost" onClick={() => openEdit(u)}
                             className="h-7 px-2.5 text-[11px] text-zinc-400 hover:text-white hover:bg-zinc-800">
                             <UserCog size={11} className="mr-1" /> Sửa
+                          </Button>
+                          <Button size="sm" variant="ghost"
+                            onClick={() => {
+                              if (u.isBanned) {
+                                updateMut.mutate({ id: u.id, payload: { isBanned: false, banReason: null } });
+                              } else {
+                                openEdit(u);
+                                setEditTab("info");
+                              }
+                            }}
+                            className={`h-7 px-2 ${u.isBanned ? 'text-green-500/60 hover:text-green-400 hover:bg-green-500/10' : 'text-orange-500/60 hover:text-orange-400 hover:bg-orange-500/10'}`}
+                            title={u.isBanned ? "Mở khóa" : "Khóa tài khoản"}>
+                            <Ban size={11} />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(u)}
                             className="h-7 px-2 text-red-500/60 hover:text-red-400 hover:bg-red-500/10">
@@ -623,6 +669,39 @@ export default function DashboardUsersPage() {
                         <Input value={giftDesc} onChange={e => setGiftDesc(e.target.value)}
                           placeholder="Lý do..." className="bg-zinc-900 border-zinc-800 text-white text-sm h-9" />
                       </div>
+                    </div>
+
+                    {/* Ban/Unban section */}
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.12)' }}>
+                      <p className="text-xs font-semibold mb-2 flex items-center gap-1" style={{ color: '#f87171' }}>
+                        <Ban size={11} /> Khóa tài khoản
+                      </p>
+                      {editing.isBanned ? (
+                        <div className="space-y-2">
+                          <p className="text-[11px]" style={{ color: '#71717a' }}>
+                            Đang bị khóa: <span className="text-red-400 font-semibold">{editing.banReason ?? 'Không có lý do'}</span>
+                          </p>
+                          <Button size="sm" className="w-full text-xs bg-green-600 hover:bg-green-500 text-white"
+                            onClick={() => updateMut.mutate({ id: editing.id, payload: { isBanned: false, banReason: null } })}
+                            disabled={updateMut.isPending}>
+                            Mở khóa tài khoản
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Input placeholder="Lý do khóa tài khoản..."
+                            id="ban-reason-input"
+                            className="bg-zinc-900 border-zinc-800 text-white text-xs h-8" />
+                          <Button size="sm" className="w-full text-xs bg-red-600 hover:bg-red-500 text-white"
+                            onClick={() => {
+                              const reason = (document.getElementById('ban-reason-input') as HTMLInputElement)?.value || 'Vi phạm điều khoản sử dụng';
+                              updateMut.mutate({ id: editing.id, payload: { isBanned: true, banReason: reason } });
+                            }}
+                            disabled={updateMut.isPending}>
+                            <Ban size={11} className="mr-1" /> Khóa tài khoản
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-2 pt-1">

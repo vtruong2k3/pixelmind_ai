@@ -32,6 +32,8 @@ export interface AdminUser {
   credits: number;
   plan: string;
   planExpiresAt: string | null;
+  isBanned: boolean;
+  banReason: string | null;
   createdAt: string;
   _count?: { jobs: number; creditTransactions: number };
 }
@@ -148,7 +150,7 @@ export const adminService = {
     return data;
   },
 
-  async updateUser(id: string, payload: { role?: string; credits?: number; creditAmount?: number; creditDescription?: string; plan?: string; planExpiresAt?: string | null }) {
+  async updateUser(id: string, payload: { role?: string; credits?: number; creditAmount?: number; creditDescription?: string; plan?: string; planExpiresAt?: string | null; isBanned?: boolean; banReason?: string | null }) {
     const { data } = await api.patch(`/admin/users/${id}`, payload);
     return data;
   },

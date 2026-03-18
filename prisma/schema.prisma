@@ -49,6 +49,8 @@ model User {
   plan             String    @default("free") // "free", "starter", "pro", "max"
   planExpiresAt    DateTime?                  // Ngày hết hạn gói tháng (null = free)
   stripeCustomerId String?   @unique          // Stripe customer ID
+  isBanned         Boolean   @default(false)  // Admin có thể ban user
+  banReason        String?                    // Lý do ban (hiển thị cho user khi login)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -227,3 +229,22 @@ model PasswordResetToken {
   @@index([email])
 }
 
+
+// =============================================
+// AUDIT LOG - Nhật ký hành động admin
+// =============================================
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // "ban_user", "unban_user", "delete_user", "update_role", "gift_credits", etc.
+  actorId     String   // Admin/Staff who performed the action
+  actorEmail  String   // Cached for display
+  targetType  String   // "user", "job", "feature", "blog"
+  targetId    String?  // ID of the affected record
+  targetLabel String?  // Human-readable label (e.g., user email, feature name)
+  details     String?  @db.Text // JSON string with additional details
+  createdAt   DateTime @default(now())
+
+  @@index([action])
+  @@index([actorId])
+  @@index([createdAt])
+}

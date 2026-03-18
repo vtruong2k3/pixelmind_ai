@@ -13,6 +13,8 @@ import {
 
 import { StatCard } from "@/components/dashboard/StatCard";
 import { DonutChart } from "@/components/dashboard/DonutChart";
+import { SystemHealth } from "@/components/dashboard/SystemHealth";
+import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { hasMinRole, type UserRole } from "@/lib/roles";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAdminStats } from "@/hook/useDashboard";
@@ -114,6 +116,9 @@ function OverviewInner() {
             </motion.div>
           </div>
 
+          {/* ── System Health ────────────────────────────────────────── */}
+          <SystemHealth />
+
           {/* ── Area Chart ───────────────────────────────────────────── */}
           {adminData.chartDays?.length > 0 && (
             <motion.div
@@ -123,13 +128,15 @@ function OverviewInner() {
               style={{ background: "#111113", border: "1px solid #1f1f23" }}
             >
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-sm font-bold text-white">Hoạt động 30 ngày qua</h3>
-                <div className="flex items-center gap-1.5 text-[10px] rounded-lg px-2.5 py-1"
-                  style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}>
-                  <DollarSign size={10} style={{ color: "#34d399" }} />
-                  <span style={{ color: "#34d399" }}>
-                    Tháng: ${(adminData.overview.monthRevenueUSD ?? 0).toLocaleString("en-US")}
-                  </span>
+                <h3 className="text-sm font-bold text-white">Hoạt động gần đây</h3>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-[10px] rounded-lg px-2.5 py-1"
+                    style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}>
+                    <DollarSign size={10} style={{ color: "#34d399" }} />
+                    <span style={{ color: "#34d399" }}>
+                      Tháng: ${(adminData.overview.monthRevenueUSD ?? 0).toLocaleString("en-US")}
+                    </span>
+                  </div>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={240}>

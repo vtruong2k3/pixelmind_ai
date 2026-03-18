@@ -34,7 +34,10 @@ export async function GET(req: NextRequest) {
       select: {
         id: true, featureName: true, featureSlug: true,
         status: true, quality: true, creditUsed: true,
-        outputUrl: true, errorMsg: true, createdAt: true,
+        outputUrl: true, errorMsg: true,
+        promptUsed: true, inputUrls: true,
+        chainhubTaskId: true, width: true, height: true, orientation: true,
+        createdAt: true,
         user: { select: { id: true, name: true, email: true, image: true } },
       },
     }),

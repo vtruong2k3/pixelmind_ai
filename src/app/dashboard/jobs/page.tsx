@@ -5,10 +5,12 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Search, Loader2, RefreshCw, Trash2, ChevronLeft, ChevronRight, Filter, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Search, Loader2, RefreshCw, Trash2, ChevronLeft, ChevronRight, Filter, Image as ImageIcon, AlertTriangle, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { adminService } from "@/services/adminService";
 import { staffService } from "@/services/staffService";
+import { JobDetailDialog } from "@/components/dashboard/jobs/JobDetailDialog";
+
 import { hasMinRole, type UserRole } from "@/lib/roles";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,6 +38,7 @@ export default function DashboardJobsPage() {
 
   const [confirmDeleteJob, setConfirmDeleteJob] = useState<any>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
 
   // ── Zustand filter state (persist filter khi navigate giữa pages) ──
   const { jobsFilter, setJobsFilter } = useDashboardStore();
@@ -185,7 +188,8 @@ export default function DashboardJobsPage() {
                   const sc = STATUS_COLORS[job.status];
                   return (
                     <tr key={job.id} style={{ background: i % 2 === 0 ? "#0c0c0e" : "#0f0f11", borderBottom: "1px solid #1f1f23" }}
-                      className="hover:bg-zinc-900/50 transition-colors">
+                      className="hover:bg-zinc-900/50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedJob(job)}>
                       <td className="px-4 py-3">
                         <div 
                           className={`w-9 h-9 rounded-lg overflow-hidden shrink-0 ${job.outputUrl ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
@@ -322,6 +326,12 @@ export default function DashboardJobsPage() {
           )}
         </DialogContent>
       </Dialog>
+      {/* ── Job Detail Dialog ── */}
+      <JobDetailDialog
+        job={selectedJob}
+        open={!!selectedJob}
+        onOpenChange={(open) => { if (!open) setSelectedJob(null); }}
+      />
 
     </div>
   );

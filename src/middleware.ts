@@ -47,6 +47,7 @@ export default auth(function middleware(req) {
       "/dashboard/users",
       "/dashboard/features",
       "/dashboard/stats",
+      "/dashboard/audit",
     ];
     if (adminOnly.some(r => pathname === r || pathname.startsWith(r + "/"))) {
       if (!hasMinRole(role, "ADMIN")) {
