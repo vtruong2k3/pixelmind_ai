@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     const plan = PAYPAL_PLANS[planId as keyof typeof PAYPAL_PLANS];
     const creditsToAdd = customData?.credits ?? plan.credits;
-    const userId = customData?.userId ?? (session.user as any).id;
+    const userId = customData?.userId ?? session.user.id;
 
     console.log(`[capture-order] planId=${planId}, credits=${creditsToAdd}, userId=${userId}`);
 

@@ -6,7 +6,7 @@ import { requireRoleResponse } from "@/lib/roles";
 // GET /api/admin/credits
 export async function GET(req: NextRequest) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard   = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   const { searchParams } = new URL(req.url);
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/credits — tặng credits (không giới hạn)
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard   = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   const { userId, amount, description } = await req.json();

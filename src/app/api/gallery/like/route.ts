@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const userId = (session.user as any).id as string;
+    const userId = session.user.id as string;
 
     const { jobId } = await req.json();
     if (!jobId) {

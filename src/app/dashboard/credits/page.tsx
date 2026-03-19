@@ -27,7 +27,7 @@ const TYPE_STYLE: Record<string, { bg: string; text: string; label: string }> = 
 
 export default function DashboardCreditsPage() {
   const { data: session, status: sessionStatus } = useSession();
-  const role    = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role    = (session?.user?.role ?? "USER") as UserRole;
   const isAdmin = hasMinRole(role, "ADMIN");
   const isStaff = hasMinRole(role, "STAFF");
   const qc      = useQueryClient();

@@ -57,8 +57,8 @@ async function fetchStudioFeatures(): Promise<AIFeature[]> {
 // ─────────────────────────────────────────────────
 function StudioInner() {
   const { data: session, update: updateSession } = useSession();
-  const user = session?.user as any;
-  const isAdmin: boolean = user?.isAdmin === true;
+  const user = session?.user;
+  const isAdmin: boolean = user?.role === "ADMIN";
   const sessionCredits: number = user?.credits ?? 0;
   const [localCredits, setLocalCredits] = useState<number>(sessionCredits);
   useEffect(() => { setLocalCredits(sessionCredits); }, [sessionCredits]);

@@ -28,7 +28,7 @@ const NAV_ITEMS = [
 export function DashboardSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const role = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role = (session?.user?.role ?? "USER") as UserRole;
 
   const visibleItems = NAV_ITEMS.filter(item => hasMinRole(role, item.minRole));
   const roleColor    = ROLE_COLORS[role] ?? ROLE_COLORS.USER;

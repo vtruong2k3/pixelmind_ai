@@ -28,9 +28,9 @@ const TYPE_COLORS: Record<string, string> = {
 function SettingsInner() {
   const qc = useQueryClient();
   const { data: session, update } = useSession();
-  const role = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role = (session?.user?.role ?? "USER") as UserRole;
   const roleColor = ROLE_COLORS[role] ?? ROLE_COLORS.USER;
-  const planInfo  = PLAN_COLORS[(session?.user as any)?.plan ?? "free"] ?? PLAN_COLORS.free;
+  const planInfo  = PLAN_COLORS[session?.user?.plan ?? "free"] ?? PLAN_COLORS.free;
 
   const [name, setName] = useState(session?.user?.name ?? "");
 
@@ -75,18 +75,18 @@ function SettingsInner() {
               </span>
               <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full"
                 style={{ background: planInfo.bg, color: planInfo.text }}>
-                {((session?.user as any)?.plan ?? "free").toUpperCase()}
+                {(session?.user?.plan ?? "free").toUpperCase()}
               </span>
             </div>
             <p className="text-xs" style={{ color: "#52525b" }}>{session?.user?.email}</p>
-            {(session?.user as any)?.planExpiresAt && (
+            {session?.user?.planExpiresAt && (
               <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: "#52525b" }}>
-                <Clock size={10} /> Hết hạn: {new Date((session?.user as any).planExpiresAt).toLocaleDateString("vi-VN")}
+                <Clock size={10} /> Hết hạn: {new Date(session.user.planExpiresAt).toLocaleDateString("vi-VN")}
               </p>
             )}
           </div>
           <div className="text-right">
-            <p className="text-2xl font-black" style={{ color: "#facc15" }}>{(session?.user as any)?.credits ?? 0}</p>
+            <p className="text-2xl font-black" style={{ color: "#facc15" }}>{session?.user?.credits ?? 0}</p>
             <p className="text-[10px]" style={{ color: "#52525b" }}>credits</p>
           </div>
         </div>

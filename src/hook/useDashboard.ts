@@ -26,7 +26,7 @@ export function useUserDashboard() {
 
 export function useAdminStats() {
   const { data: session } = useSession();
-  const role              = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role              = (session?.user?.role ?? "USER") as UserRole;
   const isAdmin           = hasMinRole(role, "ADMIN");
 
   return useQuery({
@@ -43,7 +43,7 @@ export function useAdminStats() {
 export function usePrefetchDashboard() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-  const role              = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role              = (session?.user?.role ?? "USER") as UserRole;
 
   const prefetch = async () => {
     await queryClient.prefetchQuery({

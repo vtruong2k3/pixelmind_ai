@@ -6,7 +6,7 @@ import { requireRoleResponse } from "@/lib/roles";
 // GET /api/admin/jobs
 export async function GET(req: NextRequest) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard   = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   const { searchParams } = new URL(req.url);
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
 // DELETE /api/admin/jobs — xóa job theo id trong body
 export async function DELETE(req: NextRequest) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard   = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   const { jobId } = await req.json();

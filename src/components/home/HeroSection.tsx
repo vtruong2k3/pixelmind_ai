@@ -18,10 +18,10 @@ const CAROUSEL_SCENES = [
 ];
 
 const SCENE_IMAGES: Record<string, string> = {
-  "EXPLORATION": "/bfl_banner_background.webp", // Giả lập, có thể thêm ảnh khác sau
-  "JUNGLE": "/bfl_banner_background.webp",
-  "UNDERWATER": "/bfl_banner_background.webp",
-  "MOUNTAIN": "/bfl_banner_background.webp",
+  "EXPLORATION": "/bfl_banner_background.webp",
+  "JUNGLE": "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=1920&q=80",
+  "UNDERWATER": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1920&q=80",
+  "MOUNTAIN": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
 };
 
 export default function HeroSection({ topFeatures = [] }: HeroSectionProps) {

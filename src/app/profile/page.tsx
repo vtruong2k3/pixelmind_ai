@@ -19,7 +19,7 @@ const PLAN_STYLES: Record<string, { bg: string; color: string; border: string; l
 
 export default function ProfilePage() {
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const isAdmin = session?.user?.role === "ADMIN";
 
   // ── React Query: cache profile data 1 phút ────────────────────────────────
   const { data, isLoading } = useQuery<UserDashboardData>({
@@ -41,7 +41,7 @@ export default function ProfilePage() {
   );
 
   const user = data?.user;
-  const credits = (session?.user as any)?.credits ?? user?.credits ?? 0;
+  const credits = session?.user?.credits ?? user?.credits ?? 0;
   const plan = user?.plan ?? "free";
   const userName = user?.name ?? "Người dùng";
   const userInitial = userName[0]?.toUpperCase() ?? "U";

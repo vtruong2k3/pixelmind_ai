@@ -49,7 +49,7 @@ const BarTooltip = ({ active, payload, label }: any) => {
 
 function StatsInner() {
   const { data: session } = useSession();
-  const role = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role = (session?.user?.role ?? "USER") as UserRole;
   const isAdmin = hasMinRole(role, "ADMIN");
 
   const { data, isLoading } = useAdminStats();
@@ -77,7 +77,7 @@ function StatsInner() {
   }));
 
   const totalJobs = Object.values(data?.jobStatus ?? {}).reduce((s, v) => s + (v as number), 0);
-  const completedJobs = (data?.jobStatus as any)?.COMPLETED ?? 0;
+  const completedJobs = (data?.jobStatus as Record<string, number> | undefined)?.COMPLETED ?? 0;
   const successRate = totalJobs > 0 ? ((completedJobs / totalJobs) * 100).toFixed(1) : "0";
 
   return (

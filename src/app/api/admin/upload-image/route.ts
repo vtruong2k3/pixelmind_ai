@@ -8,7 +8,7 @@ import { uploadToR2 } from "@/lib/r2";
 export async function POST(req: Request) {
   try {
     const session = await auth();
-    if (!session?.user || (session.user as any).role === "USER") {
+    if (!session?.user || session.user.role === "USER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

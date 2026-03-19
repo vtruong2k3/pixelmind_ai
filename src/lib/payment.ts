@@ -83,8 +83,8 @@ export async function processPaymentSuccess(params: ProcessPaymentParams): Promi
   // ── 2. Calculate plan expiry (30 days) ──
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, name: true, plan: true, planExpiresAt: true } as any,
-  }) as any;
+    select: { email: true, name: true, plan: true, planExpiresAt: true },
+  });
 
   const now = new Date();
   const currentRank = PLAN_RANK[currentUser?.plan ?? "free"] ?? 0;
@@ -112,7 +112,7 @@ export async function processPaymentSuccess(params: ProcessPaymentParams): Promi
         credits: { increment: credits },
         plan: planId,
         planExpiresAt: newExpiresAt,
-      } as any,
+      },
     }),
     prisma.creditTransaction.create({
       data: {
@@ -121,7 +121,7 @@ export async function processPaymentSuccess(params: ProcessPaymentParams): Promi
         type: "purchase",
         description: `Đăng ký gói ${plan.planKey}: +${credits} credits (${gatewayLabel} ${orderId})`,
         usdAmount: amountUSD ?? parseFloat(plan.amountUSD),
-      } as any,
+      },
     }),
   ]);
 

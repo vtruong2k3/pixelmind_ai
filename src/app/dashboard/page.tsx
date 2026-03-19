@@ -53,7 +53,7 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 // ── Main ─────────────────────────────────────────────────────────────────────
 function OverviewInner() {
   const { data: session } = useSession();
-  const role    = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role    = (session?.user?.role ?? "USER") as UserRole;
   const isAdmin = hasMinRole(role, "ADMIN");
 
   const { data: adminData, isLoading: aLoading } = useAdminStats();
@@ -357,7 +357,7 @@ function OverviewInner() {
                           </td>
                           <td className="px-4 py-2.5">
                             <span className="text-[10px] font-bold tabular-nums text-emerald-400">
-                              ${(tx as any).usdAmount > 0 ? (tx as any).usdAmount.toLocaleString("en-US") : "0"}
+                              ${(tx as { usdAmount?: number }).usdAmount && (tx as { usdAmount?: number }).usdAmount! > 0 ? (tx as { usdAmount?: number }).usdAmount!.toLocaleString("en-US") : "0"}
                             </span>
                           </td>
                           <td className="px-4 py-2.5">

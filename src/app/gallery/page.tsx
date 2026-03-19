@@ -241,10 +241,24 @@ export default function GalleryPage() {
     },
   });
 
-  // Masonry column splitting
-  const COLUMN_COUNT = 5;
-  const columns: GalleryItem[][] = Array.from({ length: COLUMN_COUNT }, () => []);
-  items.forEach((item, i) => columns[i % COLUMN_COUNT].push(item));
+  // Responsive column count based on window width
+  const [columnCount, setColumnCount] = useState(5);
+  useEffect(() => {
+    const updateColumns = () => {
+      const w = window.innerWidth;
+      if (w < 640) setColumnCount(1);
+      else if (w < 768) setColumnCount(2);
+      else if (w < 1024) setColumnCount(3);
+      else if (w < 1400) setColumnCount(4);
+      else setColumnCount(5);
+    };
+    updateColumns();
+    window.addEventListener("resize", updateColumns);
+    return () => window.removeEventListener("resize", updateColumns);
+  }, []);
+
+  const columns: GalleryItem[][] = Array.from({ length: columnCount }, () => []);
+  items.forEach((item, i) => columns[i % columnCount].push(item));
 
   // Varying aspect ratios for visual interest — taller cards
   const getAspectRatio = (idx: number) => {
@@ -312,7 +326,7 @@ export default function GalleryPage() {
         {/* ── Skeleton ── */}
         {isLoading && (
           <div style={{ display: "flex", gap: 12 }}>
-            {Array.from({ length: COLUMN_COUNT }).map((_, col) => (
+            {Array.from({ length: columnCount }).map((_, col) => (
               <div key={col} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
                 {Array.from({ length: 3 }).map((_, row) => (
                   <div key={row} style={{
@@ -349,7 +363,7 @@ export default function GalleryPage() {
             {columns.map((colItems, colIdx) => (
               <div key={colIdx} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
                 {colItems.map((item, rowIdx) => {
-                  const globalIdx = colIdx + rowIdx * COLUMN_COUNT;
+                  const globalIdx = colIdx + rowIdx * columnCount;
                   return (
                     <div key={item.id} className="gallery-card"
                       style={{

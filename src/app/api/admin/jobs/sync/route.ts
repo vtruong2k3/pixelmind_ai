@@ -12,7 +12,7 @@ import { uploadUrlToR2 } from "@/lib/r2";
  */
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const guard = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   try {

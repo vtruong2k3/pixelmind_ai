@@ -17,7 +17,7 @@ interface Notification {
   feature: { name: string; slug: string };
 }
 
-const POLL_INTERVAL = 5000; // 5 giây
+const POLL_INTERVAL = 30000; // 30 giây — giảm tải server, đủ responsive cho UX
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);

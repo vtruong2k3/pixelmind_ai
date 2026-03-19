@@ -567,7 +567,7 @@ function PlanCard({
 /* ── Main Page ── */
 function PricingPageInner() {
   const { data: session, update: updateSession } = useSession();
-  const user = session?.user as any;
+  const user = session?.user;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isYearly, setIsYearly] = useState(true);

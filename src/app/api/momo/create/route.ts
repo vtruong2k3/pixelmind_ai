@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Plan không hợp lệ" }, { status: 400 });
     }
 
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const timestamp = Date.now();
     const orderId = `PM_${userId.slice(-6)}_${timestamp}`;
     const requestId = `REQ_${timestamp}`;

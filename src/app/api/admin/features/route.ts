@@ -6,7 +6,7 @@ import { requireRoleResponse } from "@/lib/roles";
 // GET /api/admin/features
 export async function GET() {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard   = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   const features = await prisma.feature.findMany({
@@ -19,7 +19,7 @@ export async function GET() {
 // POST /api/admin/features — tạo feature mới
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard   = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   try {

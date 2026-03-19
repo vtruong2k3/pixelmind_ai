@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
             },
             description: plan.name,
             custom_id: JSON.stringify({
-              userId: (session.user as any).id,
+              userId: session.user.id,
               planId,
               credits: plan.credits,
             }),

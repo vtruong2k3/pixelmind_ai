@@ -6,7 +6,7 @@ import { requireRoleResponse } from "@/lib/roles";
 // PATCH /api/admin/features/[id]
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard   = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   const { id } = await params;
@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 // DELETE /api/admin/features/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "ADMIN");
+  const guard   = requireRoleResponse(session?.user?.role, "ADMIN");
   if (guard) return guard;
 
   const { id } = await params;

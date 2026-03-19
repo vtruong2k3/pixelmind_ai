@@ -38,6 +38,7 @@ export function verifyIpnSignature(params: {
   responseTime: number;
   resultCode: number;
   transId: number;
+  signature: string;
 }): boolean {
   const rawSignature =
     `accessKey=${MOMO_ACCESS_KEY}` +
@@ -56,7 +57,7 @@ export function verifyIpnSignature(params: {
 
   const expectedSignature = createSignature(rawSignature);
   // Use params that has signature field
-  const receivedSignature = (params as any).signature;
+  const receivedSignature = params.signature;
   return expectedSignature === receivedSignature;
 }
 

@@ -6,7 +6,7 @@ import { requireRoleResponse } from "@/lib/roles";
 // POST /api/staff/credits — tặng credits, giới hạn 500/lần
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "STAFF");
+  const guard   = requireRoleResponse(session?.user?.role, "STAFF");
   if (guard) return guard;
 
   const { userId, amount, description } = await req.json();

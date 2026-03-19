@@ -6,7 +6,7 @@ import { requireRoleResponse } from "@/lib/roles";
 // GET /api/user/credits — lịch sử giao dịch credits của user hiện tại
 export async function GET(req: NextRequest) {
   const session = await auth();
-  const guard = requireRoleResponse((session?.user as any)?.role, "USER");
+  const guard = requireRoleResponse(session?.user?.role, "USER");
   if (guard) return guard;
 
   const userId = session!.user!.id!;

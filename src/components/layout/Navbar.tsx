@@ -38,7 +38,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
     setAnnounceDismissed(true);
   };
 
-  const user = session?.user as any;
+  const user = session?.user;
   const credits: number = user?.credits ?? 0;
   const isAdmin = user?.role === "ADMIN";
 
@@ -63,7 +63,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
     <>
       {/* ── Announcement Bar ── */}
       {!announceDismissed && (
-        <div className="bg-black text-white text-sm text-center py-2.5 px-6 flex items-center justify-center gap-3 relative z-[60]">
+        <div className="bg-black text-white text-sm text-center py-2.5 px-6 flex items-center justify-center gap-3 relative z-60">
           <span>
             ✦ PixelMind AI — 10 công cụ AI biến ảnh của bạn thành tuyệt tác&nbsp;·&nbsp;
             <Link href="/studio" className="underline underline-offset-2 hover:text-white/80 transition-colors">

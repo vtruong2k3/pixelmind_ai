@@ -63,8 +63,13 @@ export default function HistoryPage() {
   const filtered = mediaFilter === "all"
     ? items
     : items.filter(i => {
-        if (mediaFilter === "image") return true; // all current items are images
-        return false;
+        const slug = (i.featureSlug ?? "").toLowerCase();
+        const name = (i.featureName ?? "").toLowerCase();
+        if (mediaFilter === "video") return slug.includes("video") || name.includes("video");
+        if (mediaFilter === "music") return slug.includes("music") || name.includes("music") || name.includes("audio");
+        if (mediaFilter === "speech") return slug.includes("speech") || slug.includes("tts") || name.includes("speech") || name.includes("text to speech");
+        if (mediaFilter === "image") return !slug.includes("video") && !slug.includes("music") && !slug.includes("audio") && !slug.includes("speech") && !slug.includes("tts");
+        return true;
       });
 
   const dateGroups = useMemo(() => groupByDate(filtered), [filtered]);

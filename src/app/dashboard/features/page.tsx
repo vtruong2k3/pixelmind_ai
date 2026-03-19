@@ -170,7 +170,7 @@ function FeatureFormFields({ form, onChange }: { form: FeatureForm; onChange: (p
 
 function FeaturesInner() {
   const { data: session } = useSession();
-  const role = ((session?.user as any)?.role ?? "USER") as UserRole;
+  const role = (session?.user?.role ?? "USER") as UserRole;
   const isAdmin = hasMinRole(role, "ADMIN");
   const qc = useQueryClient();
 

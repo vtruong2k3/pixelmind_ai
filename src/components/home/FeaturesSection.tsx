@@ -16,7 +16,7 @@ export default function FeaturesSection({ features }: FeaturesSectionProps) {
           className="text-6xl md:text-[5.5rem] leading-[1.05] text-gray-950 font-medium tracking-tighter" 
           style={{ letterSpacing: "-0.05em" }}
         >
-          10 tính năng AI
+          {features.length} tính năng AI
         </h2>
         <div className="flex gap-6">
           <Link href="/studio" className="text-sm text-gray-400 hover:text-gray-900 underline underline-offset-4 mono transition-colors">

@@ -6,7 +6,7 @@ import { requireRoleResponse } from "@/lib/roles";
 // GET /api/staff/jobs — STAFF + ADMIN
 export async function GET(req: NextRequest) {
   const session = await auth();
-  const guard   = requireRoleResponse((session?.user as any)?.role, "STAFF");
+  const guard   = requireRoleResponse(session?.user?.role, "STAFF");
   if (guard) return guard;
 
   const { searchParams } = new URL(req.url);
